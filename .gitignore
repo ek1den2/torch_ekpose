@@ -2,4 +2,5 @@ checkpoints/
 data/
 logs/
 experiments/
-**/__pycache__/**
+results/
+__pycache__

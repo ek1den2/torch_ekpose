@@ -66,14 +66,14 @@ def _get_block_configs():
               {'conv4_1': [256, 512, 3, 1, 1]},
               {'conv4_2': [512, 512, 3, 1, 1]},
               {'conv4_3_CPM': [512, 256, 3, 1, 1]},
-              {'conv4_4_CPM': [256, 128, 3, 1, 1]}]
+              {'conv4_4CPM': [256, 128, 3, 1, 1]}]
 
     # Stage 1
     blocks['block1_1'] = [{'conv5_1_CPM_L1': [128, 128, 3, 1, 1]},
                           {'conv5_2_CPM_L1': [128, 128, 3, 1, 1]},
                           {'conv5_3_CPM_L1': [128, 128, 3, 1, 1]},
                           {'conv5_4_CPM_L1': [128, 512, 1, 1, 0]},
-                          {'conv5_5_CPM_L1': [512, 26, 1, 1, 0]}]
+                          {'conv5_5_CPM_L1': [512, 30, 1, 1, 0]}]
 
     blocks['block1_2'] = [{'conv5_1_CPM_L2': [128, 128, 3, 1, 1]},
                           {'conv5_2_CPM_L2': [128, 128, 3, 1, 1]},
@@ -84,17 +84,17 @@ def _get_block_configs():
     # Stages 2 - 6
     for i in range(2, 7):
         blocks['block%d_1' % i] = [
-            {'Mconv1_stage%d_L1' % i: [169, 128, 7, 1, 3]},
+            {'Mconv1_stage%d_L1' % i: [173, 128, 7, 1, 3]},
             {'Mconv2_stage%d_L1' % i: [128, 128, 7, 1, 3]},
             {'Mconv3_stage%d_L1' % i: [128, 128, 7, 1, 3]},
             {'Mconv4_stage%d_L1' % i: [128, 128, 7, 1, 3]},
             {'Mconv5_stage%d_L1' % i: [128, 128, 7, 1, 3]},
             {'Mconv6_stage%d_L1' % i: [128, 128, 1, 1, 0]},
-            {'Mconv7_stage%d_L1' % i: [128, 26, 1, 1, 0]}
+            {'Mconv7_stage%d_L1' % i: [128, 30, 1, 1, 0]}
         ]
 
         blocks['block%d_2' % i] = [
-            {'Mconv1_stage%d_L2' % i: [169, 128, 7, 1, 3]},
+            {'Mconv1_stage%d_L2' % i: [173, 128, 7, 1, 3]},
             {'Mconv2_stage%d_L2' % i: [128, 128, 7, 1, 3]},
             {'Mconv3_stage%d_L2' % i: [128, 128, 7, 1, 3]},
             {'Mconv4_stage%d_L2' % i: [128, 128, 7, 1, 3]},
@@ -250,7 +250,8 @@ if __name__ == "__main__":
 
     # モデルのパラメータを確認
     flops, params = thop.profile(model, inputs=(dummy_input, ))
-    print(f"FLOPs: {flops}")
+    gflops = flops / 1e9
+    print(f"FLOPs: {flops} ({gflops:.2f} GFLOPs)")
     print(f"Parameters: {params}")
 
     # 計算グラフを出力

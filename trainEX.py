@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')  # GUIなしでmatplotlibを使用
+# matplotlib.use('Agg')  # GUIなしでmatplotlibを使用
 import matplotlib.pyplot as plt
 
 from collections import OrderedDict
@@ -45,7 +45,6 @@ def main():
 
     parser.add_argument('--loder_workers', type=int, default=8, help='データローダーのワーカー数')
     
-
     parser.add_argument('--pretrained', action='store_true', help='事前学習済みモデルを使用するかどうか')
     parser.add_argument('--pretrained_weights', type=str, default=None, help='事前学習済みモデルの重みファイルパス')
 
@@ -90,12 +89,37 @@ def main():
         transforms.Normalize(),
         transforms.RandomApply(transforms.HFlip(), probability=0.5),
         transforms.RescaleRelative(),
-        transforms.Crop(args.square_size),
+        # transforms.Crop(args.square_size),
         transforms.CenterPad(args.square_size),
     ])
 
     train_loader, val_loader, train_data, val_data = data_loader(args, preprocess, target_transforms=None)
 
+    # dataloadの確認（バッチサイズ1で）
+    # for i, (img, heatmap_target, paf_target) in enumerate(tqdm(train_loader, desc="train", leave=False)):
+    #     print(img.shape, heatmap_target.shape, paf_target.shape)
+    #     print(type(img), type(heatmap_target), type(paf_target))
+    #     input_img = img[0].permute(1, 2, 0).numpy()
+    #     plt.imshow(input_img)
+
+
+    #     plt.figure(figsize=(15, 6))
+    #     for i in range(15):
+    #         plt.subplot(3, 5, i+1)
+    #         plt.imshow(heatmap_target[0, i].numpy(), cmap='jet')
+    #         plt.title(f"Heatmap {i}")
+    #     plt.show()
+
+    #     # 3. PAF表示（26チャンネル）
+    #     plt.figure(figsize=(20, 8))
+    #     for i in range(26):
+    #         plt.subplot(4, 7, i+1)
+    #         plt.imshow(paf_target[0, i].numpy(), cmap='jet')
+    #         plt.title(f"PAF {i}")
+    #     plt.show()
+
+
+    
     model_prams = 0
     # modelの読み込み
     model = get_model(args.pretrained)
@@ -130,11 +154,6 @@ def main():
         trainable_vars = [param for param in model.parameters() if param.requires_grad]
 
         # 最適化関数の設定
-        # optimizer = torch.optim.SGD(trainable_vars, 
-        #                             lr=args.lr,
-        #                             momentum=args.momentum,
-        #                             weight_decay=args.weight_decay,
-        #                             nesterov=args.nesterov)
         optimizer = torch.optim.Adam(trainable_vars, 
                                     lr=args.lr,
                                     betas=(0.9, 0.999),
@@ -144,8 +163,8 @@ def main():
         print("\nvvvvvvvvvvv Start WarmUp vvvvvvvvvvv\n")
         for epoch in range(5):
             start_time = time()
-            train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
-            val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
+            train_loss, train_stage_losses = train(train_loader, model, optimizer, epoch)
+            val_loss, val_stage_losses = validate(val_loader, model, epoch)
             train_loss_history.append(train_loss)
             val_loss_history.append(val_loss)
 
@@ -153,6 +172,25 @@ def main():
             elapsed_time = (time() - start_time) / 60
 
             print(f'[{epoch+1}] time {elapsed_time:.2f} lr {lr:.6g} train_loss {train_loss:.6f} val_loss {val_loss:.6f}')
+
+            # print("paf6 shape:", paf6.shape)
+            # print("heat6 shape:", heat6.shape)
+            # paf6 = paf6.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+            # heat6 = heat6.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+            # plt.figure(figsize=(15, 6))
+            # for i in range(15):
+            #     plt.subplot(3, 5, i+1)
+            #     plt.imshow(heat6[:, :, i], cmap='jet')
+            #     plt.title(f"Heatmap {i}")
+            # plt.show()
+
+            # # 3. PAF表示（26チャンネル）
+            # plt.figure(figsize=(20, 8))
+            # for i in range(26):
+            #     plt.subplot(4, 7, i+1)
+            #     plt.imshow(paf6[:, :, i], cmap='jet')
+            #     plt.title(f"PAF {i}")
+            # plt.show()
 
         # すべての凍結を解除
         for param in model.parameters():
@@ -162,17 +200,11 @@ def main():
 
     # メイン学習
     trainable_vars = [param for param in model.parameters() if param.requires_grad]
-    # optimizer = torch.optim.SGD(trainable_vars, 
-    #                             lr=args.lr,
-    #                             momentum=args.momentum,
-    #                             weight_decay=args.weight_decay,
-    #                             nesterov=args.nesterov)
     optimizer = torch.optim.Adam(trainable_vars, 
                                 lr=args.lr,
                                 betas=(0.9, 0.999),
                                 weight_decay=args.weight_decay,
                                 )
-
     # 学習率のスケジューラ
     lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.8, patience=5, verbose=False)
     best_val_loss = np.inf
@@ -181,8 +213,8 @@ def main():
     print("\nvvvvvvvvvvv Start Training vvvvvvvvvvv\n")
     for epoch in range(5 if args.pretrained else 0, args.epochs):
         start_time = time()
-        train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
-        val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
+        train_loss, train_stage_losses = train(train_loader, model, optimizer, epoch)
+        val_loss, val_stage_losses = validate(val_loader, model, epoch)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
@@ -301,7 +333,7 @@ def build_names():
     
     return names
 
-def get_loss(saved_for_loss, heat_temp, vec_temp, args):
+def get_loss(saved_for_loss, heat_temp, vec_temp, i):
     """損失の計算"""
     names = build_names()
     saved_for_log = OrderedDict()
@@ -312,17 +344,49 @@ def get_loss(saved_for_loss, heat_temp, vec_temp, args):
         pred1 = saved_for_loss[2 * j]
         pred2 = saved_for_loss[2 * j + 1] 
 
+
+        # 損失の計算
+        if i % 25 == 0:
+            pred1c = pred1.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+            pred2c = pred2.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+            vec_tempc = vec_temp.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+            heat_tempc = heat_temp.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
+
+            plt.figure(figsize=(20, 4)) 
+            for i in range(15):
+                plt.subplot(2, 15, i + 1)
+                plt.imshow(pred2c[:, :, i], cmap='jet')
+                plt.title(f"Pred {i}")
+
+                plt.subplot(2, 15, i + 1 + 15)
+                plt.imshow(heat_tempc[:, :, i], cmap='jet')
+                plt.title(f"GT {i}")
+
+            plt.tight_layout()
+            plt.show()
+
+            plt.figure(figsize=(20, 4)) 
+            for i in range(30):
+                plt.subplot(2, 30, i + 1)
+                plt.imshow(pred1c[:, :, i], cmap='jet')
+                plt.title(f"Pred {i}")
+
+                plt.subplot(2, 30, i + 1 + 30)
+                plt.imshow(vec_tempc[:, :, i], cmap='jet')
+                plt.title(f"GT {i}")
+
+            plt.tight_layout()
+            plt.show()
+
         loss1 = criterion(pred1, vec_temp)
         loss2 = criterion(pred2, heat_temp)
-
         total_loss += loss1 + loss2
 
         # ログの保存
         saved_for_log[names[2 * j]] = loss1.item()
         saved_for_log[names[2 * j + 1]] = loss2.item()
-    
-    # lossをバッチサイズで割る
-    total_loss = total_loss / args.batch_size
+
+    total_loss = total_loss / 16
 
     saved_for_log['max_ht'] = torch.max(saved_for_loss[-1].data[:, 0:-1, :, :]).item()
     saved_for_log['min_ht'] = torch.min(saved_for_loss[-1].data[:, 0:-1, :, :]).item()
@@ -331,7 +395,7 @@ def get_loss(saved_for_loss, heat_temp, vec_temp, args):
 
     return total_loss, saved_for_log
 
-def train(train_loader, model, optimizer, args, epoch):
+def train(train_loader, model, optimizer, epoch):
     """訓練"""
 
     batch_time = AverageMeter()
@@ -361,7 +425,7 @@ def train(train_loader, model, optimizer, args, epoch):
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
 
-        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, args)
+        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, i = epoch+1)
 
         for name, _ in meter_dict.items():
             meter_dict[name].update(saved_for_log[name], img.size(0))
@@ -372,12 +436,20 @@ def train(train_loader, model, optimizer, args, epoch):
         # 勾配計算、最適化関数
         optimizer.zero_grad()
         total_loss.backward()
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
         # 経過時間
         batch_time.update(time() - end)
         end = time()
 
+        # 一定バッチごとにlossを記録
+        # if i % 1 == 0:
+        #     global_step = epoch * len(train_loader) + i
+        #     writer.add_scalar("DataTime", data_time.val, global_step)
+        #     writer.add_scalar("total_step_loss", losses.val, global_step) 
+        #     for name, value in meter_dict.items():
+        #         writer.add_scalar(name+"step", value.val, global_step)
     
     stage_losses = []
     for name, value in meter_dict.items():
@@ -385,7 +457,7 @@ def train(train_loader, model, optimizer, args, epoch):
 
     return losses.avg, stage_losses
 
-def validate(val_loader, model, args, epoch):
+def validate(val_loader, model, epoch):
     """検証"""
     losses = AverageMeter()
 
@@ -409,7 +481,7 @@ def validate(val_loader, model, args, epoch):
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
 
-        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, args)
+        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, i = epoch+1)
 
         for name, _ in meter_dict.items():
             meter_dict[name].update(saved_for_log[name], img.size(0))

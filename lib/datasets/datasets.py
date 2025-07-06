@@ -13,19 +13,21 @@ from . import transforms, utils
 
 def kp_connections(keypoints):
     kp_lines = [
-        [keypoints.index('neck'), keypoints.index('head')],
-        [keypoints.index('neck'), keypoints.index('left_shoulder')], 
-        [keypoints.index('left_shoulder'), keypoints.index('left_elbow')],
-        [keypoints.index('left_elbow'), keypoints.index('left_wrist')],
-        [keypoints.index('neck'), keypoints.index('right_shoulder')],
-        [keypoints.index('right_shoulder'), keypoints.index('right_elbow')],
-        [keypoints.index('right_elbow'), keypoints.index('right_wrist')],
-        [keypoints.index('neck'), keypoints.index('left_hip')],
-        [keypoints.index('left_hip'), keypoints.index('left_knee')],
-        [keypoints.index('left_knee'), keypoints.index('left_ankle')],
-        [keypoints.index('neck'), keypoints.index('right_hip')],
-        [keypoints.index('right_hip'), keypoints.index('right_knee')],
-        [keypoints.index('right_knee'), keypoints.index('right_ankle')]
+        [keypoints.index('Neck'), keypoints.index('Head')],
+        [keypoints.index('Head'), keypoints.index('LShoulder')],
+        [keypoints.index('Head'), keypoints.index('RShoulder')],
+        [keypoints.index('Neck'), keypoints.index('LShoulder')],
+        [keypoints.index('LShoulder'), keypoints.index('LElbow')],
+        [keypoints.index('LElbow'), keypoints.index('LWrist')],
+        [keypoints.index('Neck'), keypoints.index('RShoulder')],
+        [keypoints.index('RShoulder'), keypoints.index('RElbow')],
+        [keypoints.index('RElbow'), keypoints.index('RWrist')],
+        [keypoints.index('Neck'), keypoints.index('LHip')],
+        [keypoints.index('LHip'), keypoints.index('LKnee')],
+        [keypoints.index('LKnee'), keypoints.index('LAnkle')],
+        [keypoints.index('Neck'), keypoints.index('RHip')],
+        [keypoints.index('RHip'), keypoints.index('RKnee')],
+        [keypoints.index('RKnee'), keypoints.index('RAnkle')]
     ]
     return kp_lines
     
@@ -33,20 +35,20 @@ def get_keypoints():
     """COCOキーポイントとその左右反転対応マップを取得"""
 
     keypoints = [
-        'head',
-        'left_shoulder',
-        'left_elbow',
-        'left_wrist',
-        'right_shoulder',
-        'right_elbow',
-        'right_wrist',   
-        'left_hip',
-        'left_knee',
-        'left_ankle',
-        'right_hip',
-        'right_knee',
-        'right_ankle',
-        'neck'
+        'Head',
+        'LShoulder',
+        'LElbow',
+        'LWrist',
+        'RShoulder',
+        'RElbow',
+        'RWrist',
+        'LHip',
+        'LKnee',
+        'LAnkle',
+        'RHip',
+        'RKnee',
+        'RAnkle',
+        'Neck'
     ]
 
     return keypoints
@@ -82,7 +84,8 @@ class CustomKeypoints(torch.utils.data.Dataset):
     """独自データクラス"""
 
     def __init__(self, root, annFile, image_transform=None, target_transforms=None,
-                 n_images=None, preprocess=None, all_images=False, all_persons=False, input_y=368, input_x=368, stride=8):
+                 n_images=None, preprocess=None, all_images=False, all_persons=False,
+                 input_y=1024, input_x=1024, stride=8):
         from pycocotools.coco import COCO
         from contextlib import redirect_stdout
 
@@ -90,7 +93,7 @@ class CustomKeypoints(torch.utils.data.Dataset):
         with redirect_stdout(io.StringIO()):
             self.coco = COCO(annFile)
 
-        self.cat_ids = self.coco.getCatIds(catNms=['infpose'])
+        self.cat_ids = self.coco.getCatIds(catNms=['person'])
         if all_images:
             self.ids = self.coco.getImgIds()
         elif all_persons:

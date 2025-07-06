@@ -79,15 +79,15 @@ def get_outputs(image, model, preprocess):
     pafs = output1.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
     heatmaps = output2.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
 
-    return heatmaps, pafs, im_scale
+    return heatmaps, pafs, im_data
 
 
 
 if __name__ == "__main__":
     import cv2
     import matplotlib.pyplot as plt
-    img_path = "data/coco/images/train/image2.jpg"
-    ckpt_path = "checkpoints/20250618_12-21-27/best_epoch.pth"
+    img_path = "results/futaba_017.png"
+    ckpt_path = "checkpoints/20250704_20-53-50/epoch_180.pth"
 
     img  = cv2.imread(img_path)
 
@@ -115,6 +115,6 @@ if __name__ == "__main__":
         plt.subplot(222)
         plt.imshow(heatmaps[:, :, i], cmap='jet')
 
-        # plt.subplot(223)
-        # plt.imshow(pafs[:, :, i], cmap='jet')
+        plt.subplot(223)
+        plt.imshow(pafs[:, :, i], cmap='jet')
         plt.show()
