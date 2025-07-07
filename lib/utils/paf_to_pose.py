@@ -31,8 +31,7 @@ def find_peaks(param, img):
     :return: 画像内で見つかった各ピークの[x, y]座標を含む2D np.array
     """
 
-    peaks_binary = (maximum_filter(img, footprint=generate_binary_structure(
-        2, 1)) == img) * (img > param)
+    peaks_binary = (maximum_filter(img, footprint=generate_binary_structure(2, 1)) == img) * (img > param)
     # 逆順（[::-1]）に注意：[[y x], [y x]...]の代わりに[[x y], [x y]...]を返す。
     return np.array(np.nonzero(peaks_binary)[::-1]).T
 
@@ -115,7 +114,7 @@ def NMS(heatmaps, upsampFactor=1., bool_refine_center=True, bool_gaussian_filt=F
                 # パッチ内の最大値の座標を取得する。
                 location_of_max = np.unravel_index(
                     map_upsamp.argmax(), map_upsamp.shape)
-                # peaksは[x,y]を示していることを思い出す -> [y,x]にするために逆にする必要がある。
+                # peaksは[x,y]を示している -> [y,x]にするために逆にする
                 location_of_patch_center = compute_resized_coords(
                     peak[::-1] - [y_min, x_min], upsampFactor)
                 # 実際の最大値があるパッチ中心からのオフセットを計算する。

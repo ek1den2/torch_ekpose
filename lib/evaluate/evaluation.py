@@ -38,40 +38,35 @@ def _factor_closest(num, factor, is_ceil=True):
     return num
 
 
-def padding(img, target_size, factor=8, is_ceil=True):
+def padding(im, dest_size, factor=8, is_ceil=True):
     """画像をパディングしてリサイズする"""
-    im_shape = img.shape
-    im_size_min = np.min(im_shape[0:2])     # 短辺を取得
-    im_size_max = np.max(im_shape[0:2])     # 長編を取得
+    im_shape = im.shape
+    im_size_min = np.min(im_shape[0:2])
+    im_size_max = np.max(im_shape[0:2])
+    # im_scale = 1.
+    # if max_size is not None and im_size_min > max_size:
+    im_scale = float(dest_size) / im_size_max
+    im = cv2.resize(im, None, fx=im_scale, fy=im_scale)
 
-    im_scale = float(target_size) / im_size_max
-    img = cv2.resize(img, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_AREA)
+    h, w, c = im.shape
+    new_h = _factor_closest(h, factor=factor, is_ceil=is_ceil)
+    new_w = _factor_closest(w, factor=factor, is_ceil=is_ceil)
+    im_pad = np.zeros([new_h, new_w, c], dtype=im.dtype)
+    im_pad[0:h, 0:w, :] = im
 
-    h, w, c = img.shape
-    new_h = _factor_closest(h, factor, is_ceil)
-    new_w = _factor_closest(w, factor, is_ceil)
-
-    # 背景を黒でパディング
-    im_pad = np.zeros([new_h, new_w, c], dtype=img.dtype)
-
-    top_pad = (new_h - h) // 2
-    left_pad = (new_w - w) // 2
-
-    im_pad[top_pad:top_pad + h, left_pad:left_pad + w, :] = img
-
-    return im_pad, im_scale, im_shape
+    return im_pad, im_scale, im.shape
 
 
 def get_outputs(image, model, preprocess):
 
-    im_cloped, im_scale, real_shape = padding(image, 160, factor=8, is_ceil=True)
+    im_cloped, im_scale, pad = padding(image, 160, factor=8, is_ceil=True)
     
     if preprocess == 'vgg':
         im_data = vgg_preprocess(im_cloped)
     elif preprocess == 'rtpose':
         im_data = rtpose_preprocess(im_cloped)
 
-    batch_image = np.expand_dims(im_data, axis=0)
+    batch_image = np.expand_dims(im_data, 0)
 
     batch_var = torch.from_numpy(batch_image).float().cuda()
     predicted, _ = model(batch_var)
@@ -79,42 +74,4 @@ def get_outputs(image, model, preprocess):
     pafs = output1.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
     heatmaps = output2.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
 
-    return heatmaps, pafs, im_scale
-
-
-
-if __name__ == "__main__":
-    import cv2
-    import matplotlib.pyplot as plt
-    img_path = "data/coco/images/train/image2.jpg"
-    ckpt_path = "checkpoints/20250618_12-21-27/best_epoch.pth"
-
-    img  = cv2.imread(img_path)
-
-    model = VGG19.get_model()
-    model = load_ckpt(model, ckpt_path)
-    heatmaps, pafs, im_data = get_outputs(img, model, 'vgg')
-
-    print("heatmap shape:", heatmaps.shape)
-    print("paf shape:", pafs.shape)
-    im_data = im_data.transpose(1, 2, 0)  # CHW -> HWC
-
-
-    # plt.subplot(121)
-    # plt.imshow(im_data)
-    # plt.subplot(122)
-    # plt.imshow(heatmaps[:, :, 1], cmap='jet')
-    # plt.show()
-    
-
-    for i in range(heatmaps.shape[2]):
-
-        plt.subplot(221)
-        plt.imshow(im_data)
-        
-        plt.subplot(222)
-        plt.imshow(heatmaps[:, :, i], cmap='jet')
-
-        # plt.subplot(223)
-        # plt.imshow(pafs[:, :, i], cmap='jet')
-        plt.show()
+    return pafs, heatmaps, im_scale

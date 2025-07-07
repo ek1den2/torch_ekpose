@@ -3,4 +3,5 @@ data/
 logs/
 experiments/
 results/
+results.json
 __pycache__
