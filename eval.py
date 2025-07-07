@@ -42,7 +42,7 @@ from lib.network import VGG19
 10-'right_hip'  11-'right_knee'  12-'right_ankle'  13-'neck')
 '''
 
-ORDER_CUSTOM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+ORDER_CUSTOM = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 DATA_DIR = './data/'
 
 def main():

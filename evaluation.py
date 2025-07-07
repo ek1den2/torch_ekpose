@@ -38,28 +38,43 @@ def _factor_closest(num, factor, is_ceil=True):
     return num
 
 
-def padding(img, target_size, factor=8, is_ceil=True):
-    """画像をパディングしてリサイズする"""
-    im_shape = img.shape
-    im_size_min = np.min(im_shape[0:2])     # 短辺を取得
-    im_size_max = np.max(im_shape[0:2])     # 長編を取得
+def padding(im, target_size=None, factor=32, is_ceil=True):
+    # """画像をパディングしてリサイズする"""
+    # im_shape = img.shape
+    # im_size_min = np.min(im_shape[0:2])     # 短辺を取得
+    # im_size_max = np.max(im_shape[0:2])     # 長編を取得
 
-    im_scale = float(target_size) / im_size_max
-    img = cv2.resize(img, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_AREA)
+    # im_scale = float(target_size) / im_size_max
+    # img = cv2.resize(img, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_AREA)
 
-    h, w, c = img.shape
-    new_h = _factor_closest(h, factor, is_ceil)
-    new_w = _factor_closest(w, factor, is_ceil)
+    # h, w, c = img.shape
+    # new_h = _factor_closest(h, factor, is_ceil)
+    # new_w = _factor_closest(w, factor, is_ceil)
 
-    # 背景を黒でパディング
-    im_pad = np.zeros([new_h, new_w, c], dtype=img.dtype)
+    # # 背景を黒でパディング
+    # im_pad = np.zeros([new_h, new_w, c], dtype=img.dtype)
 
-    top_pad = (new_h - h) // 2
-    left_pad = (new_w - w) // 2
+    # top_pad = (new_h - h) // 2
+    # left_pad = (new_w - w) // 2
 
-    im_pad[top_pad:top_pad + h, left_pad:left_pad + w, :] = img
+    # im_pad[top_pad:top_pad + h, left_pad:left_pad + w, :] = img
 
-    return im_pad, im_scale, im_shape
+    # return im_pad, im_scale, im_shape
+    im_shape = im.shape
+    im_size_min = np.min(im_shape[0:2])
+    im_size_max = np.max(im_shape[0:2])
+    # im_scale = 1.
+    # if max_size is not None and im_size_min > max_size:
+    im_scale = float(target_size) / im_size_min
+    im = cv2.resize(im, None, fx=im_scale, fy=im_scale)
+
+    h, w, c = im.shape
+    new_h = _factor_closest(h, factor=factor, is_ceil=is_ceil)
+    new_w = _factor_closest(w, factor=factor, is_ceil=is_ceil)
+    im_croped = np.zeros([new_h, new_w, c], dtype=im.dtype)
+    im_croped[0:h, 0:w, :] = im
+
+    return im_croped, im_scale, im.shape
 
 
 def get_outputs(image, model, preprocess):
@@ -86,8 +101,8 @@ def get_outputs(image, model, preprocess):
 if __name__ == "__main__":
     import cv2
     import matplotlib.pyplot as plt
-    img_path = "results/futaba_017.png"
-    ckpt_path = "checkpoints/20250704_20-53-50/epoch_180.pth"
+    img_path = "data/irpose/images/train/ori_014.png"
+    ckpt_path = "checkpoints/best_epoch.pth"
 
     img  = cv2.imread(img_path)
 
@@ -107,7 +122,7 @@ if __name__ == "__main__":
     # plt.show()
     
 
-    for i in range(heatmaps.shape[2]):
+    for i in range(pafs.shape[2]):
 
         plt.subplot(221)
         plt.imshow(im_data)

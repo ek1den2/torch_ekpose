@@ -13,21 +13,21 @@ from . import transforms, utils
 
 def kp_connections(keypoints):
     kp_lines = [
-        [keypoints.index('Neck'), keypoints.index('Head')],
-        [keypoints.index('Head'), keypoints.index('LShoulder')],
-        [keypoints.index('Head'), keypoints.index('RShoulder')],
-        [keypoints.index('Neck'), keypoints.index('LShoulder')],
-        [keypoints.index('LShoulder'), keypoints.index('LElbow')],
-        [keypoints.index('LElbow'), keypoints.index('LWrist')],
-        [keypoints.index('Neck'), keypoints.index('RShoulder')],
-        [keypoints.index('RShoulder'), keypoints.index('RElbow')],
-        [keypoints.index('RElbow'), keypoints.index('RWrist')],
-        [keypoints.index('Neck'), keypoints.index('LHip')],
-        [keypoints.index('LHip'), keypoints.index('LKnee')],
-        [keypoints.index('LKnee'), keypoints.index('LAnkle')],
-        [keypoints.index('Neck'), keypoints.index('RHip')],
-        [keypoints.index('RHip'), keypoints.index('RKnee')],
-        [keypoints.index('RKnee'), keypoints.index('RAnkle')]
+        [keypoints.index('neck'), keypoints.index('head')],             # 1
+        [keypoints.index('neck'), keypoints.index('l_shoulder')],       # 2
+        [keypoints.index('l_shoulder'), keypoints.index('l_elbow')],    # 3
+        [keypoints.index('l_elbow'), keypoints.index('l_wrist')],       # 4
+        [keypoints.index('neck'), keypoints.index('r_shoulder')],       # 5
+        [keypoints.index('r_shoulder'), keypoints.index('r_elbow')],    # 6
+        [keypoints.index('r_elbow'), keypoints.index('r_wrist')],       # 7
+        [keypoints.index('neck'), keypoints.index('l_hip')],            # 8
+        [keypoints.index('l_hip'), keypoints.index('l_knee')],          # 9
+        [keypoints.index('l_knee'), keypoints.index('l_ankle')],        # 10
+        [keypoints.index('neck'), keypoints.index('r_hip')],            # 11
+        [keypoints.index('r_hip'), keypoints.index('r_knee')],          # 12
+        [keypoints.index('r_knee'), keypoints.index('r_ankle')],        # 13
+        [keypoints.index('head'), keypoints.index('l_shoulder')],       # 14
+        [keypoints.index('head'), keypoints.index('r_shoulder')]        # 15
     ]
     return kp_lines
     
@@ -35,20 +35,20 @@ def get_keypoints():
     """COCOキーポイントとその左右反転対応マップを取得"""
 
     keypoints = [
-        'Head',
-        'LShoulder',
-        'LElbow',
-        'LWrist',
-        'RShoulder',
-        'RElbow',
-        'RWrist',
-        'LHip',
-        'LKnee',
-        'LAnkle',
-        'RHip',
-        'RKnee',
-        'RAnkle',
-        'Neck'
+        'head',       # 1
+        'neck',       # 2
+        'l_shoulder', # 3
+        'l_elbow',    # 4
+        'l_wrist',    # 5
+        'r_shoulder', # 6
+        'r_elbow',    # 7
+        'r_wrist',    # 8
+        'l_hip',      # 9
+        'l_knee',     # 10
+        'l_ankle',    # 11
+        'r_hip',      # 12
+        'r_knee',     # 13
+        'r_ankle'     # 14
     ]
 
     return keypoints
@@ -85,7 +85,7 @@ class CustomKeypoints(torch.utils.data.Dataset):
 
     def __init__(self, root, annFile, image_transform=None, target_transforms=None,
                  n_images=None, preprocess=None, all_images=False, all_persons=False,
-                 input_y=1024, input_x=1024, stride=8):
+                 input_y=368, input_x=368, stride=8):
         from pycocotools.coco import COCO
         from contextlib import redirect_stdout
 
@@ -202,9 +202,11 @@ class CustomKeypoints(torch.utils.data.Dataset):
         
     def add_neck(self, keypoint):
         """キーポイントにneckを追加"""
-        # 1が右肩、4が左肩
-        right_shoulder = keypoint[1, :]
-        left_shoulder = keypoint[4, :]
+        our_order = [0, 13, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+        # 1が左肩、4が右肩
+        left_shoulder = keypoint[1, :]
+        right_shoulder = keypoint[4, :]
         neck = (right_shoulder + left_shoulder) / 2
         if right_shoulder[2] == 2 and left_shoulder[2] == 2:
             neck[2] = 2
@@ -214,6 +216,7 @@ class CustomKeypoints(torch.utils.data.Dataset):
         neck = neck.reshape(1, len(neck))
         neck = np.round(neck)
         keypoint = np.vstack((keypoint, neck))
+        keypoint = keypoint[our_order, :]
 
         return keypoint
                 
@@ -264,7 +267,7 @@ class CustomKeypoints(torch.utils.data.Dataset):
                         count=count, grid_y=grid_y, grid_x=grid_x, stride=self.stride
                     )
 
-        # 背景チャネル（13 "+1"の部分）。どのキーポイントでもない領域
+        # 背景チャネル（14 "+1"の部分）。どのキーポイントでもない領域
         heatmaps[:, :, -1] = np.maximum(
             1 - np.max(heatmaps[:, :, :self.HEATMAP_COUNT], axis=2),
             0.

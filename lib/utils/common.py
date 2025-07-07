@@ -6,30 +6,30 @@ import math
 class CustomPart(Enum):
     """カスタムキーポイントの定義"""
     Head = 0
-    LShoulder = 1
-    LElbow = 2
-    LWrist = 3
-    RShoulder = 4
-    RElbow = 5
-    RWrist = 6
-    LHip = 7
-    LKnee = 8
-    LAnkle = 9
-    RHip = 10
-    RKnee = 11
-    RAnkle = 12
-    Neck = 13
+    Neck = 1
+    LShoulder = 2
+    LElbow = 3
+    LWrist = 4
+    RShoulder = 5
+    RElbow = 6
+    RWrist = 7
+    LHip = 8
+    LKnee = 9
+    LAnkle = 10
+    RHip = 11
+    RKnee = 12
+    RAnkle = 13
     Background = 14
 
 CustomPairs = [
-    [0, 13], [13, 1], [1, 2], [2, 3], [4, 13], [4, 5], [5, 6],
-    [13, 7], [7, 8], [8, 9], [13, 10], [10, 11], [11, 12]
+    (0, 1), (1, 2), (2, 3), (3, 4), (1, 5), (5, 6), (6, 7),
+    (1, 8), (8, 9), (9, 10), (1, 11), (11, 12), (12, 13), (0, 2), (0, 5)
 ]
 
 CustomColors = [
     [255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], 
     [85, 255, 0], [0, 255, 0], [0, 255, 85], [0, 255, 170], [0, 255, 255],
-    [0, 170, 255], [0, 85, 255], [0, 0, 255], [255, 0, 255]
+    [0, 170, 255], [0, 85, 255], [0, 0, 255], [255, 0, 255], [0, 0, 255], [255, 0, 255]
 ]
 
 CustomPairsRender = CustomPairs
@@ -226,7 +226,7 @@ def draw_humans(npimg, humans, imgcopy=False):
             body_part = human.body_parts[i]
             center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
             centers[i] = center
-            cv2.circle(npimg, center, 3, CustomColors[i], thickness=3, lineType=8, shift=0)
+            cv2.circle(npimg, center, 1, CustomColors[i], thickness=3, lineType=8, shift=0)
 
         # 線を描画
         for pair_order, pair in enumerate(CustomPairsRender):
@@ -234,7 +234,7 @@ def draw_humans(npimg, humans, imgcopy=False):
                 continue
 
             # npimg = cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CustomColors[pair_order], 3)
-            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], 3)
+            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], 1)
 
     return npimg
     
