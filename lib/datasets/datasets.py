@@ -13,21 +13,21 @@ from . import transforms, utils
 
 def kp_connections(keypoints):
     kp_lines = [
-        [keypoints.index('neck'), keypoints.index('head')],             # 1
-        [keypoints.index('neck'), keypoints.index('l_shoulder')],       # 2
-        [keypoints.index('l_shoulder'), keypoints.index('l_elbow')],    # 3
-        [keypoints.index('l_elbow'), keypoints.index('l_wrist')],       # 4
-        [keypoints.index('neck'), keypoints.index('r_shoulder')],       # 5
-        [keypoints.index('r_shoulder'), keypoints.index('r_elbow')],    # 6
-        [keypoints.index('r_elbow'), keypoints.index('r_wrist')],       # 7
-        [keypoints.index('neck'), keypoints.index('l_hip')],            # 8
-        [keypoints.index('l_hip'), keypoints.index('l_knee')],          # 9
-        [keypoints.index('l_knee'), keypoints.index('l_ankle')],        # 10
-        [keypoints.index('neck'), keypoints.index('r_hip')],            # 11
-        [keypoints.index('r_hip'), keypoints.index('r_knee')],          # 12
-        [keypoints.index('r_knee'), keypoints.index('r_ankle')],        # 13
-        [keypoints.index('head'), keypoints.index('l_shoulder')],       # 14
-        [keypoints.index('head'), keypoints.index('r_shoulder')]        # 15
+        [keypoints.index('neck'), keypoints.index('head')],             # (0, 1)
+        [keypoints.index('neck'), keypoints.index('l_shoulder')],       # (2, 3)
+        [keypoints.index('l_shoulder'), keypoints.index('l_elbow')],    # (4, 5)
+        [keypoints.index('l_elbow'), keypoints.index('l_wrist')],       # (6, 7)
+        [keypoints.index('neck'), keypoints.index('r_shoulder')],       # (8, 9)
+        [keypoints.index('r_shoulder'), keypoints.index('r_elbow')],    # (10, 11)
+        [keypoints.index('r_elbow'), keypoints.index('r_wrist')],       # (12, 13)
+        [keypoints.index('neck'), keypoints.index('l_hip')],            # (14, 15)
+        [keypoints.index('l_hip'), keypoints.index('l_knee')],          # (16, 17)
+        [keypoints.index('l_knee'), keypoints.index('l_ankle')],        # (18, 19)
+        [keypoints.index('neck'), keypoints.index('r_hip')],            # (20, 21)
+        [keypoints.index('r_hip'), keypoints.index('r_knee')],          # (22, 23)
+        [keypoints.index('r_knee'), keypoints.index('r_ankle')],        # (24, 25)
+        [keypoints.index('head'), keypoints.index('l_shoulder')],       # (26, 27)
+        [keypoints.index('head'), keypoints.index('r_shoulder')]        # (28, 29)
     ]
     return kp_lines
     

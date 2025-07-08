@@ -39,12 +39,12 @@ def _factor_closest(num, factor, is_ceil=True):
 
 
 def padding(im, target_size=None, factor=32, is_ceil=True):
-    # """画像をパディングしてリサイズする"""
+    """画像をパディングしてリサイズする"""
     # im_shape = img.shape
     # im_size_min = np.min(im_shape[0:2])     # 短辺を取得
     # im_size_max = np.max(im_shape[0:2])     # 長編を取得
 
-    # im_scale = float(target_size) / im_size_max
+    # im_scale = float(target_size) / im_size_min
     # img = cv2.resize(img, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_AREA)
 
     # h, w, c = img.shape
@@ -65,13 +65,13 @@ def padding(im, target_size=None, factor=32, is_ceil=True):
     im_size_max = np.max(im_shape[0:2])
     # im_scale = 1.
     # if max_size is not None and im_size_min > max_size:
-    im_scale = float(target_size) / im_size_min
+    im_scale = float(target_size) / im_size_max
     im = cv2.resize(im, None, fx=im_scale, fy=im_scale)
 
     h, w, c = im.shape
     new_h = _factor_closest(h, factor=factor, is_ceil=is_ceil)
     new_w = _factor_closest(w, factor=factor, is_ceil=is_ceil)
-    im_croped = np.zeros([new_h, new_w, c], dtype=im.dtype)
+    im_croped = np.full([new_h, new_w, c], fill_value=255, dtype=im.dtype)
     im_croped[0:h, 0:w, :] = im
 
     return im_croped, im_scale, im.shape
@@ -80,6 +80,7 @@ def padding(im, target_size=None, factor=32, is_ceil=True):
 def get_outputs(image, model, preprocess):
 
     im_cloped, im_scale, real_shape = padding(image, 160, factor=8, is_ceil=True)
+    print("im_scale:", im_scale)
     
     if preprocess == 'vgg':
         im_data = vgg_preprocess(im_cloped)
@@ -94,7 +95,7 @@ def get_outputs(image, model, preprocess):
     pafs = output1.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
     heatmaps = output2.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
 
-    return heatmaps, pafs, im_data
+    return heatmaps, pafs, im_data, im_scale
 
 
 
@@ -108,8 +109,9 @@ if __name__ == "__main__":
 
     model = VGG19.get_model()
     model = load_ckpt(model, ckpt_path)
-    heatmaps, pafs, im_data = get_outputs(img, model, 'vgg')
-
+    heatmaps, pafs, im_data, im_scale = get_outputs(img, model, 'vgg')
+    print("im_data shape:", im_data.shape)
+    print("im_scale:", im_scale)
     print("heatmap shape:", heatmaps.shape)
     print("paf shape:", pafs.shape)
     im_data = im_data.transpose(1, 2, 0)  # CHW -> HWC
@@ -128,8 +130,8 @@ if __name__ == "__main__":
         plt.imshow(im_data)
         
         plt.subplot(222)
-        plt.imshow(heatmaps[:, :, i], cmap='jet')
+        plt.imshow(heatmaps[:, :, i], cmap='jet', vmin=0, vmax=1)
 
         plt.subplot(223)
-        plt.imshow(pafs[:, :, i], cmap='jet')
+        plt.imshow(pafs[:, :, i], cmap='jet', vmin=0, vmax=1)
         plt.show()
