@@ -5,3 +5,10 @@ experiments/
 results/
 results.json
 __pycache__
+lib/pafprocess/build/
+lib/pafprocess/pafprocess.py
+lib/pafprocess/pafprocess_wrap.cpp
+lib/pafprocess/pafprocess_wrap.cxx
+
+*.so
+*.pyc
