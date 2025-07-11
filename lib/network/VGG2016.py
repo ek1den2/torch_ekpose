@@ -1,55 +1,38 @@
 import torch
 import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
 from torch.nn import init
+from torchvision import models
 
 class VGG19(nn.Module):
-    """VGG19モデル"""
+    """VGG19"""
     
-    def __init__(self, pretrained=True, pretrained_path=None):
+    def __init__(self):
         super(VGG19, self).__init__()
+        print("Building VGG19")
         
         # VGG19バックボーン（前処理ステージ）
-        self.model0 = nn.Sequential(
-            nn.Conv2d(3, 64, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2, 0),
-            nn.Conv2d(64, 128, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2, 0),
-            nn.Conv2d(128, 256, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2, 0),
-            nn.Conv2d(256, 512, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(512, 256, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(256, 128, 3, 1, 1), nn.ReLU(inplace=True)
-        )
-        
-        # VGG19事前学習済み重みの読み込み
-        if pretrained:
-            if pretrained_path is not None:
-                print(f'>>> load pretrained model from {pretrained_path} <<<')
-                self.load_state_dict(torch.load(pretrained_path))
-            else:
-                print('>>> load imagenet pretrained model <<<')
-                self._load_vgg_pretrained()
-    
+        self.backbone = nn.Sequential(
+            *list(models.vgg19().features.children())[:23],
+            nn.Conv2d(512, 256, 3, 1, 1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 128, 3, 1, 1),
+            nn.ReLU(inplace=True)
+            )   # 0-22まで
+
     def forward(self, x):
-        out1 = self.model0(x)
-        return out1
+        x = self.backbone(x)
+        return x
+
 
 class OpenPose(nn.Module):
-    """CPM (Convolutional Pose Machine) モデル"""
+    """OpenPose2016"""
     
-    def __init__(self, pretrained=True, pretrained_path=None):
+    def __init__(self):
         super(OpenPose, self).__init__()
-        
         # VGG19バックボーン
-        print("Building VGG19")
-        self.model0 = VGG19(pretrained=pretrained, pretrained_path=pretrained_path)
+        self.model0 = VGG19()
+
+        print("Building OpenPose2016")
         # Stage 1 - L1ブランチ（Part Affinity Fields）
         self.model1_1 = nn.Sequential(
             nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
@@ -93,115 +76,83 @@ class OpenPose(nn.Module):
             ))
 
 
-        self._initialize_weights_norm()
-        
-        # VGG19事前学習済み重みの読み込み
-        if pretrained:
-            if pretrained_path is not None:
-                print(f'>>> load pretrained model from {pretrained_path} <<<')
-                self.load_state_dict(torch.load(pretrained_path))
-            else:
-                print('>>> load imagenet pretrained model <<<')
-                self._load_vgg_pretrained()
-
     def forward(self, x):
         """順伝播"""
         saved_for_loss = []
         
         # VGG19バックボーン
-        out1 = self.model0(x)
+        features = self.model0(x)
 
         # Stage 1
-        out1_1 = self.model1_1(out1)
-        out1_2 = self.model1_2(out1)
-        out2 = torch.cat([out1_1, out1_2, out1], 1)
+        out1_1 = self.model1_1(features)
+        out1_2 = self.model1_2(features)
         saved_for_loss.extend([out1_1, out1_2])
 
-        # Stage 2
-        out2_1 = self.model2_1(out2)
-        out2_2 = self.model2_2(out2)
-        out3 = torch.cat([out2_1, out2_2, out1], 1)
-        saved_for_loss.extend([out2_1, out2_2])
+        first_stage_outputs = torch.cat([out1_1, out1_2, features], 1)
 
-        # Stage 3
-        out3_1 = self.model3_1(out3)
-        out3_2 = self.model3_2(out3)
-        out4 = torch.cat([out3_1, out3_2, out1], 1)
-        saved_for_loss.extend([out3_1, out3_2])
+        # Stage 2 - 6
+        for stage in range(2, 7):
+            model_l1 = getattr(self, f'model{stage}_1')
+            model_l2 = getattr(self, f'model{stage}_2')
 
-        # Stage 4
-        out4_1 = self.model4_1(out4)
-        out4_2 = self.model4_2(out4)
-        out5 = torch.cat([out4_1, out4_2, out1], 1)
-        saved_for_loss.extend([out4_1, out4_2])
+            out_l1 = model_l1(first_stage_outputs)
+            out_l2 = model_l2(first_stage_outputs)
+            saved_for_loss.extend([out_l1, out_l2])
 
-        # Stage 5
-        out5_1 = self.model5_1(out5)
-        out5_2 = self.model5_2(out5)
-        out6 = torch.cat([out5_1, out5_2, out1], 1)
-        saved_for_loss.extend([out5_1, out5_2])
+            if stage < 6:
+                first_stage_outputs = torch.cat([out_l1, out_l2, features], 1)
 
-        # Stage 6 (最終出力)
-        out6_1 = self.model6_1(out6)
-        out6_2 = self.model6_2(out6)
-        saved_for_loss.extend([out6_1, out6_2])
-
-        return (out6_1, out6_2), saved_for_loss
+        return (saved_for_loss[-2], saved_for_loss[-1]), saved_for_loss
 
     def _initialize_weights_norm(self):
         """重みの初期化"""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                init.normal_(m.weight, std=0.01)
+                init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 if m.bias is not None:
                     init.constant_(m.bias, 0.0)
 
         # 各ブロック最後の層の重みを正規分布で初期化
         final_layers = [
-            self.model1_1[8], self.model1_2[8],
-            self.model2_1[12], self.model2_2[12],
-            self.model3_1[12], self.model3_2[12],
-            self.model4_1[12], self.model4_2[12],
-            self.model5_1[12], self.model5_2[12],
-            self.model6_1[12], self.model6_2[12]
+            self.model1_1[-1], self.model1_2[-1],
+            self.model2_1[-1], self.model2_2[-1],
+            self.model3_1[-1], self.model3_2[-1],
+            self.model4_1[-1], self.model4_2[-1],
+            self.model5_1[-1], self.model5_2[-1],
+            self.model6_1[-1], self.model6_2[-1]
         ]
         
         for layer in final_layers:
             init.normal_(layer.weight, std=0.01)
 
-    def _load_vgg_pretrained(self):
-        """VGG19の事前学習済み重みを読み込み"""
-        url = 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
-        vgg_state_dict = model_zoo.load_url(url)
-        vgg_keys = list(vgg_state_dict.keys())
 
-        # VGGの重みをmodel0（VGG19バックボーン）に適用
-        weights_load = {}
-        model_keys = list(self.state_dict().keys())
-        
-        # 最初の20個の重み（VGG19部分）を対応させる
-        for i in range(min(20, len(vgg_keys))):
-            if i < len(model_keys):
-                weights_load[model_keys[i]] = vgg_state_dict[vgg_keys[i]]
+def get_model(pretrained_path=None, imagenet_pretrained=False):
+    """ 呼び出される処理 """
+    model = OpenPose()
 
-        # 現在のモデル状態を更新
-        current_state = self.state_dict()
-        current_state.update(weights_load)
-        self.load_state_dict(current_state)
+    if pretrained_path:
+        print(f'>>> Loading pretrained model from "{pretrained_path}" <<<')
+        model.load_state_dict(torch.load(pretrained_path))
 
-
-def get_model(pretrained=False, pretrained_path=None):
-    """CPMモデルを構築して返す"""
-    return OpenPose(pretrained=pretrained)
+    elif imagenet_pretrained:
+        print('>>> Loading imagenet pretrained model <<<')
+        pretrained = models.vgg19(weights=models.VGG19_Weights.IMAGENET1K_V1)
+        backbone_state_dict = model.backbone.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained.state_dict().items() if k in backbone_state_dict}
+        backbone_state_dict.update(pretrained_dict)
+        model.backbone.load_state_dict(backbone_state_dict)
+    
+    return model
 
 
 if __name__ == "__main__":
     import os
     import thop
+    from torchinfo import summary
     from torchviz import make_dot
     from torch.utils.tensorboard import SummaryWriter
 
-    model = get_model(pretrained=False)
+    model = get_model()
     print(model)
     
     # テスト用のダミー入力
@@ -228,3 +179,5 @@ if __name__ == "__main__":
     writer.close()
 
     # tensorboard --logdir=../../experiments/img_network/VGG19/tbX/  でネットワークを可視化
+
+    summary(model, input_size=(1, 3, 224, 224), depth=4)
