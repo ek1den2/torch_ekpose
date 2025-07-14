@@ -43,7 +43,7 @@ class MobileNet(nn.Module):
         self.conv_width = conv_width
 
         min_depth = 8
-        depth = lambda d: max(int(d * self.conv_width), min_depth)
+        depth = lambda d: max(round(d * self.conv_width), min_depth)
 
         # MobileNetバックボーン（前処理ステージ）
         self.model0 = nn.ModuleList([
@@ -85,51 +85,52 @@ class MobileNet(nn.Module):
 class OpenPose(nn.Module):
     """OpenPose モデル"""
     
-    def __init__(self, conv_width=1.0):
+    def __init__(self, conv_width=0.75, conv_width2=0.50):
         super(OpenPose, self).__init__()
         
         # Mobilenetバックボーン
         self.model0 = MobileNet(conv_width=conv_width)
 
         min_depth = 8
-        depth = lambda d: max(int(d * conv_width), min_depth)
+        depth = lambda d: max(round(d * conv_width), min_depth)
+        depth2 = lambda d: max(round(d * conv_width2), min_depth)
         
         # Stage 1 - L1ブランチ（Part Affinity Fields）
         self.model1_1 = nn.Sequential(
-            DSConv(depth(1152), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(512), 1, 1, 0),
-            DSConv(depth(512), 30, 1, 1, 0, relu=False)
+            DSConv(depth(1152), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(512), 1, 1, 0),
+            DSConv(depth2(512), 30, 1, 1, 0, relu=False)
         )
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
         self.model1_2 = nn.Sequential(
-            DSConv(depth(1152), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(512), 1, 1, 0),
-            DSConv(depth(512), 15, 1, 1, 0, bias=False)
+            DSConv(depth(1152), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(512), 1, 1, 0),
+            DSConv(depth2(512), 15, 1, 1, 0, relu=False)
         )
         
         # Stage 2 - 6
         for stage in range(2, 7):
             # L1ブランチ（出力30チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                DSConv(depth(1152)+30+15, depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 1, 1, 0),
-                DSConv(depth(128), 30, 1, 1, 0, relu=False)
+                DSConv(depth(1152)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 1, 1, 0),
+                DSConv(depth2(128), 30, 1, 1, 0, relu=False)
             ))
             
             # L2ブランチ（出力15チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                DSConv(depth(1152)+30+15, depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 1, 1, 0),
-                DSConv(depth(128), 15, 1, 1, 0, relu=False)
+                DSConv(depth(1152)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 1, 1, 0),
+                DSConv(depth2(128), 15, 1, 1, 0, relu=False)
             ))
         
         self._initialize_weights_norm()
@@ -207,7 +208,7 @@ if __name__ == "__main__":
     print(model)
     
     # テスト用のダミー入力
-    dummy_input = torch.randn(1, 3, 224, 224)
+    dummy_input = torch.randn(1, 3, 368, 368)
 
     # モデルのパラメータを確認
     flops, params = thop.profile(model, inputs=(dummy_input, ))
@@ -216,7 +217,7 @@ if __name__ == "__main__":
     print(f"Parameters: {params}")
 
     # 計算グラフを出力
-    MODELNAME = "mobilenet"
+    MODELNAME = "mobilenet_thin"
     _, saved_for_loss = model(dummy_input)
     out_dir = f"../../experiments/img_network/{MODELNAME}"
     os.makedirs(out_dir, exist_ok=True)
@@ -231,4 +232,4 @@ if __name__ == "__main__":
 
     # tensorboard --logdir=../../experiments/img_network/mobilenet/tbX/  でネットワークを可視化
 
-    summary(model, input_size=(1, 3, 224, 224), depth=4)
+    summary(model, input_size=(1, 3, 368, 368), depth=4)
