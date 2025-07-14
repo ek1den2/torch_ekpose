@@ -1,0 +1,7 @@
+matplotlib
+tensorboard
+opencv-python
+pycocotools
+scipy
+yacs
+# setuptools==59.5.0
