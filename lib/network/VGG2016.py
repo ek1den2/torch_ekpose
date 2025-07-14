@@ -156,7 +156,7 @@ if __name__ == "__main__":
     print(model)
     
     # テスト用のダミー入力
-    dummy_input = torch.randn(1, 3, 224, 224)
+    dummy_input = torch.randn(1, 3, 368, 368)
 
     # モデルのパラメータを確認
     flops, params = thop.profile(model, inputs=(dummy_input, ))
@@ -180,4 +180,4 @@ if __name__ == "__main__":
 
     # tensorboard --logdir=../../experiments/img_network/VGG19/tbX/  でネットワークを可視化
 
-    summary(model, input_size=(1, 3, 224, 224), depth=4)
+    summary(model, input_size=(1, 3, 368, 368), depth=4)
