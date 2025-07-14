@@ -43,11 +43,11 @@ def main():
 
     parser.add_argument('--square_size', type=int, default=160, help='リサイズ後の正方形サイズ')
 
-    parser.add_argument('--loder_workers', type=int, default=8, help='データローダーのワーカー数')
+    parser.add_argument('--loader_workers', type=int, default=8, help='データローダーのワーカー数')
     
 
-    parser.add_argument('--pretrained', action='store_true', help='事前学習済みモデルを使用するかどうか')
-    parser.add_argument('--pretrained_weights', type=str, default=None, help='事前学習済みモデルの重みファイルパス')
+    parser.add_argument('--imagenet_pretrained', action='store_true', help='imagenetで事前学習済みモデルを使用するか')
+    parser.add_argument('--pretrained_path', type=str, default=None, help='事前学習済みモデルの重みファイルパス')
 
     # 最適化
     parser.add_argument('--momentum', type=float, default=0.9, help='モメンタム')
@@ -98,7 +98,7 @@ def main():
 
     model_prams = 0
     # modelの読み込み
-    model = get_model(args.pretrained)
+    model = get_model()
     # for param in model.parameters():
     #     model_prams += param.numel()
     # print("INFO: Trainable parameters count:", model_prams)
@@ -263,7 +263,7 @@ def data_loader(args, preprocess, target_transforms):
             train_data,
             batch_size=args.batch_size,
             shuffle=True,
-            num_workers=args.loder_workers,
+            num_workers=args.loader_workers,
             pin_memory=args.pin_memory,
             drop_last=False
         )
@@ -284,7 +284,7 @@ def data_loader(args, preprocess, target_transforms):
             val_data,
             batch_size=args.batch_size,
             shuffle=False,
-            num_workers=args.loder_workers,
+            num_workers=args.loader_workers,
             pin_memory=args.pin_memory,
             drop_last=False
         )
