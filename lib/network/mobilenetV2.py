@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 from torchvision import models
-import math
 
 
 # Depthwise Separable Convolution
@@ -85,114 +84,110 @@ class MobileNetV2(nn.Module):
         super(MobileNetV2, self).__init__()
         print("Building MobileNetV2")
 
-        block = IRB
-        in_channels = 32
-        last_channels = 1280
-        Inverted_Residual_Setting = [
-            # t, c, n, s
-            [1, 16, 1, 1],  # 1
-            [6, 24, 2, 2],  # 2-3
-            [6, 32, 3, 2],  # 4-6
-            [6, 64, 4, 2],  # 7-10
-        ]
+        min_depth = 8
+        depth = lambda d: max(round(d * conv_width), min_depth)
+        
+        # 1層
+        self.features = ConvBN(3, depth(32), stride=2, padding=1, bias=False) # 0
 
-        # 1層目
-        input_channel = int(in_channels * conv_width)
-        self.last_channel = int(last_channels * conv_width) if conv_width > 1.0 else last_channels
-        self.features = [ConvBN(3, input_channel, 2)]
-        
-        # 反転残差ブロックの構築
-        for t, c, n, s in Inverted_Residual_Setting:
-            output_channel = int(c * conv_width)
-            for i in range(n):
-                if i == 0:
-                    self.features.append(block(input_channel, output_channel, s, expand_ratio=t))
-                else:
-                    self.features.append(block(input_channel, output_channel, 1, expand_ratio=t))
-                input_channel = output_channel
-        
-        # 2層目以降
-        self.features.append(Conv1x1BN(input_channel, self.last_channel))
-        # nn.Sequentialを作成
-        self.features = nn.Sequential(*self.features)
+        # 2-18層
+        self.irblock1 = IRB(depth(32), depth(16), stride=1, expand_ratio=1)    # 1  n = 1
+        self.irblock2 = IRB(depth(16), depth(24), stride=2, expand_ratio=6)    # 2  n = 2
+        self.irblock3 = IRB(depth(24), depth(24), stride=1, expand_ratio=6)    # 3
+        self.irblock4 = IRB(depth(24), depth(32), stride=2, expand_ratio=6)    # 4  n = 3
+        self.irblock5 = IRB(depth(32), depth(32), stride=1, expand_ratio=6)    # 5
+        self.irblock6 = IRB(depth(32), depth(32), stride=1, expand_ratio=6)    # 6
+        self.irblock7 = IRB(depth(32), depth(64), stride=2, expand_ratio=6)    # 7  n = 4
+        self.irblock8 = IRB(depth(64), depth(64), stride=1, expand_ratio=6)    # 8
+        self.irblock9 = IRB(depth(64), depth(64), stride=1, expand_ratio=6)    # 9
+        self.irblock10 = IRB(depth(64), depth(64), stride=1, expand_ratio=6)   # 10
+        self.irblock11 = IRB(depth(64), depth(96), stride=1, expand_ratio=6)   # 11  n = 3
+        self.irblock12 = IRB(depth(96), depth(96), stride=1, expand_ratio=6)   # 12
+        self.irblock13 = IRB(depth(96), depth(96), stride=1, expand_ratio=6)   # 13
+        self.irblock14 = IRB(depth(96), depth(160), stride=2, expand_ratio=6)  # 14  n = 3
+        self.irblock15 = IRB(depth(160), depth(160), stride=1, expand_ratio=6) # 15
+        self.irblock16 = IRB(depth(160), depth(160), stride=1, expand_ratio=6) # 16
+        self.irblock17 = IRB(depth(160), depth(320), stride=1, expand_ratio=6) # 17  n = 1
+
+        self.avgpool = nn.AdaptiveAvgPool2d(7)  # 7x7の適応平均プーリング
+        # 最終層
+        self.last_layer = (Conv1x1BN(depth(320), 1280, bias=False))            # 18
+
 
 
     def forward(self, x):
-        layer_4_outputs = None
-        layer_11_outputs = None
+        out0 = self.features(x)  # 1層目
+        out1 = self.irblock1(out0)  # 2層目
+        out2 = self.irblock2(out1)  # 3層目
+        out3 = self.irblock3(out2)  # 4層目
+        out4 = self.irblock4(out3)  # 5層目
+        out5 = self.irblock5(out4)  # 6層目
+        out6 = self.irblock6(out5)  # 7層目
+        out7 = self.irblock7(out6)  # 8層目
+        out8 = self.irblock8(out7)  # 9層目
+        out9 = self.irblock9(out8)  # 10層目
+        out10 = self.irblock10(out9)  # 11層目
+        out11 = self.irblock11(out10)  # 12層目
+        out12 = self.irblock12(out11)  # 13層目
+        out13 = self.irblock13(out12)  # 14層目
 
-        for i, layer in enumerate(self.features):
-            x = layer(x)
-            if i == 3:
-                layer_4_outputs = x
-            elif i == 10:
-                layer_11_outputs = x
-        
-        # 4層目と11層目の出力を保存
-        layer_11_upsampled = nn.functional.interpolate(
-            layer_11_outputs,
-            size=layer_4_outputs.shape[2:],
-            mode='bilinear',
-            align_corners=False
-        )
+        # 7層目とアップサンプリングした14層目を結合
+        out13_upsample = nn.functional.interpolate(out13, size=out6.shape[2:], mode='bilinear', align_corners=False)
+        outputs = torch.cat([out6, out13_upsample], dim=1)
 
-        # チャネル次元で結合
-        concat_features = torch.cat([layer_4_outputs, layer_11_upsampled], dim=1)
-
-        return concat_features
-
-
+        return outputs
 
 class OpenPose(nn.Module):
     """OpenPose モデル"""
 
-    def __init__(self, conv_width=1.0):
+    def __init__(self, conv_width=0.5, conv_width2=0.5):
         super(OpenPose, self).__init__()
         
         # VGG19バックボーン（前処理ステージ）
-        self.model0 = MobileNetV2()
+        self.model0 = MobileNetV2(conv_width=conv_width)
 
         min_depth = 8
-        depth = lambda d: max(int(d * conv_width), min_depth)
-        
+        depth = lambda d: max(round(d * conv_width), min_depth)
+        depth2 = lambda d: max(round(d * conv_width2), min_depth)
+
 
         print("Building OpenPose2016")
         # Stage 1 - L1ブランチ（Part Affinity Fields）
         self.model1_1 = nn.Sequential(
-            DSConv(depth(88), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(512), 1, 1, 0),
-            DSConv(depth(512), 30, 1, 1, 0, relu=False)
+            DSConv(depth(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(512), 1, 1, 0),
+            DSConv(depth2(512), 30, 1, 1, 0, relu=False)
         )
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
         self.model1_2 = nn.Sequential(
-            DSConv(depth(88), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(128), 3, 1, 1),
-            DSConv(depth(128), depth(512), 1, 1, 0),
-            DSConv(depth(512), 15, 1, 1, 0, bias=False)
+            DSConv(depth(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(128), 3, 1, 1),
+            DSConv(depth2(128), depth2(512), 1, 1, 0),
+            DSConv(depth2(512), 15, 1, 1, 0, relu=False)
         )
         
         # Stage 2 - 6
         for stage in range(2, 7):
             # L1ブランチ（出力30チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                DSConv(depth(88)+30+15, depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 1, 1, 0),
-                DSConv(depth(128), 30, 1, 1, 0, relu=False)
+                DSConv(depth(128)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 1, 1, 0),
+                DSConv(depth2(128), 30, 1, 1, 0, relu=False)
             ))
             
             # L2ブランチ（出力15チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                DSConv(depth(88)+30+15, depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 3, 1, 1),
-                DSConv(depth(128), depth(128), 1, 1, 0),
-                DSConv(depth(128), 15, 1, 1, 0, relu=False)
+                DSConv(depth(128)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 3, 1, 1),
+                DSConv(depth2(128), depth2(128), 1, 1, 0),
+                DSConv(depth2(128), 15, 1, 1, 0, relu=False)
             ))
 
         self._initialize_weights_norm()
@@ -281,7 +276,7 @@ if __name__ == "__main__":
     print(model)
     
     # テスト用のダミー入力
-    dummy_input = torch.randn(1, 3, 224, 224)
+    dummy_input = torch.randn(1, 3, 368, 368)
 
     # モデルのパラメータを確認
     flops, params = thop.profile(model, inputs=(dummy_input, ))
@@ -290,7 +285,7 @@ if __name__ == "__main__":
     print(f"Parameters: {params}")
 
     # 計算グラフを出力
-    MODELNAME = "mobilenet_v2"
+    MODELNAME = "mobilenet_v2_small"
     _, saved_for_loss = model(dummy_input)
     out_dir = f"../../experiments/img_network/{MODELNAME}"
     os.makedirs(out_dir, exist_ok=True)
@@ -305,4 +300,4 @@ if __name__ == "__main__":
 
     # tensorboard --logdir=../../experiments/img_network/mobilenet_v2/tbX/  でネットワークを可視化
 
-    summary(model, input_size=(1, 3, 224, 224), depth=4)
+    summary(model, input_size=(1, 3, 368, 368), depth=4)
