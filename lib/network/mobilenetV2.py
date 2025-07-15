@@ -140,7 +140,7 @@ class MobileNetV2(nn.Module):
 class OpenPose(nn.Module):
     """OpenPose モデル"""
 
-    def __init__(self, conv_width=0.5, conv_width2=0.5):
+    def __init__(self, conv_width=1.4, conv_width2=1.0):
         super(OpenPose, self).__init__()
         
         # VGG19バックボーン（前処理ステージ）
