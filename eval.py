@@ -19,7 +19,7 @@ from lib.utils.paf_to_pose import paf_to_pose_cpp
 from lib.evaluate.evaluation import load_ckpt, get_outputs
 
 # モデルのインポート
-from lib.network import VGG19
+from lib.network.mobilenetV2 import get_model
 
 # parser = argparse.ArgumentParser()
 # parser.add_argument('--cfg', help='experiment configure file name',
@@ -57,7 +57,7 @@ def main():
 
 
     # モデルの選択
-    model = VGG19.get_model(pretrained=False)
+    model = get_model()
 
     # チェックポイントのロード
     model = load_ckpt(model, args.ckpt)

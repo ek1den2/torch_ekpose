@@ -5,7 +5,7 @@ from lib.datasets.preprocessing import vgg_preprocess, rtpose_preprocess
 import cv2
 
 # モデルのインポート
-from lib.network import VGG2016
+from lib.network.VGG2016 import get_model
 
 
 def load_ckpt(model, ckpt_path):
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     img  = cv2.imread(img_path)
 
-    model = VGG2016.get_model()
+    model = get_model()
     model = load_ckpt(model, ckpt_path)
     heatmaps, pafs, im_data, im_scale = get_outputs(img, model, 'vgg')
     print("im_data shape:", im_data.shape)
