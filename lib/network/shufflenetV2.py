@@ -153,13 +153,18 @@ class ShuffleNetV2(nn.Module):
 
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.maxpool(x)
-        x = self.stage2(x)
-        x = self.stage3(x)
-        x = self.stage4(x)
-        x = self.conv5(x)
-        return x
+        out1 = self.conv1(x)
+        out1p = self.maxpool(out1)
+        out2 = self.stage2(out1p)
+        out3 = self.stage3(out2)
+        out4 = self.stage4(out3)
+        out5 = self.conv5(out4)
+
+        out5_upsample = nn.functional.interpolate(out5, size=out2.shape[2:], mode='bilinear', align_corners=False)
+        outputs = torch.cat([out2, out5_upsample], dim=1)
+
+
+        return outputs
 
 
 class OpenPose(nn.Module):
@@ -179,7 +184,7 @@ class OpenPose(nn.Module):
         print("Building OpenPose2016")
         # Stage 1 - L1ブランチ（Part Affinity Fields）
         self.model1_1 = nn.Sequential(
-            DSConv(depth(1024), depth2(128), 3, 1, 1),
+            DSConv(depth(1140), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
@@ -188,7 +193,7 @@ class OpenPose(nn.Module):
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
         self.model1_2 = nn.Sequential(
-            DSConv(depth(1024), depth2(128), 3, 1, 1),
+            DSConv(depth(1140), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
@@ -199,7 +204,7 @@ class OpenPose(nn.Module):
         for stage in range(2, 7):
             # L1ブランチ（出力30チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                DSConv(depth(1024)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth(1140)+30+15, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
@@ -208,7 +213,7 @@ class OpenPose(nn.Module):
             
             # L2ブランチ（出力15チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                DSConv(depth(1024)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth(1140)+30+15, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
@@ -310,7 +315,7 @@ if __name__ == "__main__":
     print(f"Parameters: {params}")
 
     # 計算グラフを出力
-    MODELNAME = "shufflenet_v2_2_0"
+    MODELNAME = "shufflenet_v2_1_0"
     _, saved_for_loss = model(dummy_input)
     out_dir = f"../../experiments/img_network/{MODELNAME}"
     os.makedirs(out_dir, exist_ok=True)
