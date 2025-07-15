@@ -117,7 +117,7 @@ def main():
 
     # 事前学習済みモデルを使用する場合
     # 最初の5エポックは特徴マップのレイヤーを凍結して学習
-    if args.pretrained:
+    if args.pretrained_path or args.imagenet_pretrained:
         
         # 特徴マップのレイヤーを凍結
         # print(model.module) # モデルの構造を確認し凍結する層を決定　eg. OpenPose -> model -> (各層)
@@ -179,7 +179,7 @@ def main():
     
 
     print("\nvvvvvvvvvvv Start Training vvvvvvvvvvv\n")
-    for epoch in range(5 if args.pretrained else 0, args.epochs):
+    for epoch in range(5 if args.pretrained_path or args.imagenet_pretrained else 0, args.epochs):
         start_time = time()
         train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
         val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
