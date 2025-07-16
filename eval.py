@@ -12,7 +12,7 @@ import torch
 from lib.datasets.preprocessing import (inception_preprocess,
                                               rtpose_preprocess,
                                               ssd_preprocess, vgg_preprocess)
-from lib.config import cfg, update_config
+from lib.config import cfg
 from lib.utils.common import Human, BodyPart, CustomPart, CustomColors, CustomPairsRender, draw_humans
 from lib.utils.paf_to_pose import paf_to_pose_cpp
 

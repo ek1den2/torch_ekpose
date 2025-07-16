@@ -60,7 +60,7 @@ if __name__ == "__main__":
     for model in model_list:
         print(f"- {model}")    
 
-    model_name = input("モデル名を入力（デフォルトはVGG2016）") or 'vgg2016'
+    model_name = input("モデル名を入力（デフォルトはvgg2016）") or 'vgg2016'
     conv_width = float(input("Convの幅を入力（デフォルトは1.0）") or 1.0)
     conv_width2 = float(input("Conv2の幅を入力（デフォルトは1.0）") or 1.0)
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     print(model)
     
     # テスト用のダミー入力
-    dummy_input = torch.randn(1, 3, 368, 368)
+    dummy_input = torch.randn(1, 3, 160, 160)
 
     # モデルのパラメータを確認
     flops, params = thop.profile(model, inputs=(dummy_input, ))
@@ -88,17 +88,18 @@ if __name__ == "__main__":
     MODELNAME = model_name + "_conv" + str(conv_width) + "_conv2" + str(conv_width2)
 
     _, saved_for_loss = model(dummy_input)
-    out_dir = f"../../experiments/img_network/{MODELNAME}"
+    out_dir = f"experiments/{MODELNAME}"
     os.makedirs(out_dir, exist_ok=True)
-    g = make_dot(saved_for_loss[-2], params=dict(model.named_parameters()))
-    g.render("../../experiments/img_network/" + MODELNAME + "/pafs_model", format="png")
-    g = make_dot(saved_for_loss[-1], params=dict(model.named_parameters()))
-    g.render("../../experiments/img_network/" + MODELNAME + "/cmap_output", format="png")
 
-    writer = SummaryWriter("../../experiments/img_network/" + MODELNAME + "/tbX/")
+    g = make_dot(saved_for_loss[-2], params=dict(model.named_parameters()))
+    g.render("experiments/" + MODELNAME + "/pafs_model", format="png")
+    g = make_dot(saved_for_loss[-1], params=dict(model.named_parameters()))
+    g.render("experiments/" + MODELNAME + "/cmap_output", format="png")
+
+    writer = SummaryWriter("experiments/" + MODELNAME + "/tbX/")
     writer.add_graph(model, (dummy_input, ))
     writer.close()
 
-    # tensorboard --logdir=../../experiments/img_network/mobilenet/tbX/  でネットワークを可視化
+    # tensorboard --logdir= experiments/mobilenet/tbX/  でネットワークを可視化
 
     summary(model, input_size=(1, 3, 368, 368), depth=4)
