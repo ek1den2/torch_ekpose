@@ -178,14 +178,20 @@ class OpenPose(nn.Module):
         self.model0 = ShuffleNetV2(conv_width=conv_width)
 
         min_depth = 8
-        depth = lambda d: max(round(d * conv_width), min_depth)
+        settings = {
+            0.5: [24, 48, 96, 192, 1024], 
+            1.0: [24, 116, 232, 464, 1024],
+            1.5: [24, 176, 352, 704, 1024],
+            2.0: [24, 244, 488, 976, 2048]
+        }
+        depth = settings[conv_width][1] + settings[conv_width][2]
         depth2 = lambda d: max(round(d * conv_width2), min_depth)
 
 
         print("Building OpenPose2016")
         # Stage 1 - L1ブランチ（Part Affinity Fields）
         self.model1_1 = nn.Sequential(
-            DSConv(depth(348), depth2(128), 3, 1, 1),
+            DSConv(depth, depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
@@ -194,7 +200,7 @@ class OpenPose(nn.Module):
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
         self.model1_2 = nn.Sequential(
-            DSConv(depth(348), depth2(128), 3, 1, 1),
+            DSConv(depth, depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
@@ -205,7 +211,7 @@ class OpenPose(nn.Module):
         for stage in range(2, 7):
             # L1ブランチ（出力30チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                DSConv(depth(348)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth+30+15, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
@@ -214,7 +220,7 @@ class OpenPose(nn.Module):
             
             # L2ブランチ（出力15チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                DSConv(depth(348)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth+30+15, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
