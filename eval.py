@@ -22,9 +22,9 @@ from lib.evaluate.evaluation import load_ckpt, get_outputs
 from lib.network.networks import get_model
 
 '''
-(0-'head'  1-'left_shoulder'  2-'left_elbow'  3-'left_wrist'  4-'right_shoulder'
-5-'right_elbow'  6-'right_wrist'  7-'left_hip'  8-'left_knee'  9-'left_ankle'
-10-'right_hip'  11-'right_knee'  12-'right_ankle'  13-'neck')
+(0-'head' 1-'neck' 2-'left_shoulder' 3-'left_elbow'  4-'left_wrist'  5-'right_shoulder'
+6-'right_elbow'  7-'right_wrist'  8-'left_hip'  9-'left_knee'  10-'left_ankle'
+11-'right_hip'  12-'right_knee'  13-'right_ankle')
 '''
 
 ORDER_CUSTOM = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
