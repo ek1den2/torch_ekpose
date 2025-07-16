@@ -4,10 +4,6 @@ import numpy as np
 from lib.datasets.preprocessing import vgg_preprocess, rtpose_preprocess
 import cv2
 
-# モデルのインポート
-from lib.network import VGG19
-
-
 def load_ckpt(model, ckpt_path):
     """チェックポイントをロード"""
 

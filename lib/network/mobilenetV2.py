@@ -246,58 +246,12 @@ class OpenPose(nn.Module):
 
 
 
-def get_model(pretrained_path=None, imagenet_pretrained=False):
+def load_model(pretrained_path=None, conv_width=1.0, conv_width2=1.0):
     """ 呼び出される処理 """
-    model = OpenPose()
+    model = OpenPose(conv_width=conv_width, conv_width2=conv_width2)
 
     if pretrained_path:
         print(f'>>> Loading pretrained model from "{pretrained_path}" <<<')
         model.load_state_dict(torch.load(pretrained_path))
-
-    elif imagenet_pretrained:
-        print('>>> Loading imagenet pretrained model <<<')
-        pretrained = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.IMAGENET1K_V2)
-        backbone_state_dict = model.backbone.state_dict()
-        pretrained_dict = {k: v for k, v in pretrained.state_dict().items() if k in backbone_state_dict}
-        backbone_state_dict.update(pretrained_dict)
-        model.backbone.load_state_dict(backbone_state_dict)
     
     return model
-
-
-if __name__ == "__main__":
-    import os
-    import thop
-    from torchinfo import summary
-    from torchviz import make_dot
-    from torch.utils.tensorboard import SummaryWriter
-
-    model = get_model()
-    print(model)
-    
-    # テスト用のダミー入力
-    dummy_input = torch.randn(1, 3, 368, 368)
-
-    # モデルのパラメータを確認
-    flops, params = thop.profile(model, inputs=(dummy_input, ))
-    gflops = flops / 1e9
-    print(f"FLOPs: {flops} ({gflops:.2f} GFLOPs)")
-    print(f"Parameters: {params}")
-
-    # 計算グラフを出力
-    MODELNAME = "mobilenet_v2_small"
-    _, saved_for_loss = model(dummy_input)
-    out_dir = f"../../experiments/img_network/{MODELNAME}"
-    os.makedirs(out_dir, exist_ok=True)
-    g = make_dot(saved_for_loss[-2], params=dict(model.named_parameters()))
-    g.render("../../experiments/img_network/" + MODELNAME + "/pafs_model", format="png")
-    g = make_dot(saved_for_loss[-1], params=dict(model.named_parameters()))
-    g.render("../../experiments/img_network/" + MODELNAME + "/cmap_output", format="png")
-
-    writer = SummaryWriter("../../experiments/img_network/" + MODELNAME + "/tbX/")
-    writer.add_graph(model, (dummy_input, ))
-    writer.close()
-
-    # tensorboard --logdir=../../experiments/img_network/mobilenet_v2/tbX/  でネットワークを可視化
-
-    summary(model, input_size=(1, 3, 368, 368), depth=4)

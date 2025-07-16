@@ -21,7 +21,7 @@ from lib.datasets import datasets, transforms
 from lib.config.utils import Logger
 
 # モデルのインポート
-from lib.network.VGG19 import get_model
+from lib.network.networks import get_model
 
 
 DATA_DIR = './data/'
@@ -31,25 +31,28 @@ WEIGHTS_DIR = './checkpoints/'
 
 def main():
     parser = argparse.ArgumentParser(description='OpenPose Training Script')
-    parser.add_argument('-m', '--model', type=str, default='vgg19', help='使用モデル名')
+    parser.add_argument('-m', '--model', type=str, default='vgg2016', help='使用モデル名')
     parser.add_argument('-d', '--data_dir', type=str, required=True, help='データセットディレクトリ名')
     parser.add_argument('-b', '--batch_size', type=int, default=16, help='バッチサイズ')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='エポック数')
     parser.add_argument('--gpus', type=str, default='0', help='使用するGPUのID（カンマ区切り）')
     parser.add_argument('-l', '--lr', type=float, default=0.0001, help='学習率')
-    parser.add_argument('--optimizer', type=str, default='adam', help='最適化アルゴリズム')
+    parser.add_argument('--square_size', type=int, default=160, help='リサイズ後の正方形サイズ')
+    parser.add_argument('--loader_workers', type=int, default=8, help='データローダーのワーカー数')
+
+    # モデルの設定
+    parser.add_argument('-cw1', '--conv_width1', type=float, default=1.0, help='Convの倍率')
+    parser.add_argument('-cw2', '--conv_width2', type=float, default=1.0, help='Conv2の倍率')
+
+    # ログの設定
     parser.add_argument('--training_curve', action='store_true', help='学習曲線を保存するか')
     parser.add_argument('--save_epoch', type=int, default=20, help='モデルの保存間隔（エポック数）')
 
-    parser.add_argument('--square_size', type=int, default=160, help='リサイズ後の正方形サイズ')
-
-    parser.add_argument('--loader_workers', type=int, default=8, help='データローダーのワーカー数')
-    
-
+    # 転移学習の設定
     parser.add_argument('--imagenet_pretrained', action='store_true', help='imagenetで事前学習済みモデルを使用するか')
     parser.add_argument('--pretrained_path', type=str, default=None, help='事前学習済みモデルの重みファイルパス')
 
-    # 最適化
+    # 最適化関数の設定
     parser.add_argument('--momentum', type=float, default=0.9, help='モメンタム')
     parser.add_argument('--weight_decay', type=float, default=0.0005, help='重み減衰')
     parser.add_argument('--nesterov', type=bool, default=True, help='Nesterovの加速（デフォルトで使用）')
@@ -96,13 +99,23 @@ def main():
 
     train_loader, val_loader, train_data, val_data = data_loader(args, preprocess, target_transforms=None)
 
-    model_prams = 0
+    
     # modelの読み込み
-    model = get_model()
-    # for param in model.parameters():
-    #     model_prams += param.numel()
-    # print("INFO: Trainable parameters count:", model_prams)
+    model = get_model(
+        model_name=args.model,
+        pretrained_path=args.pretrained_path,
+        imagenet_pretrained=args.imagenet_pretrained,
+        conv_width=args.conv_width1,
+        conv_width2=args.conv_width2
+    )
+
     model = torch.nn.DataParallel(model).cuda()
+
+    # パラメータ表示（使わん）
+    # model_params = 0
+    # for param in model.parameters():
+    #     model_params += param.numel()
+    # print("INFO: Trainable parameters count:", model_params)
 
     print("INFO: Training Data:", len(train_loader.dataset))
     print("INFO: Validation Data:", len(val_loader.dataset))

@@ -5,7 +5,7 @@ from lib.datasets.preprocessing import vgg_preprocess, rtpose_preprocess
 import cv2
 
 # モデルのインポート
-from lib.network.VGG2016 import get_model
+from lib.network.networks import get_model
 
 
 def load_ckpt(model, ckpt_path):
@@ -102,14 +102,33 @@ def get_outputs(image, model, preprocess):
 if __name__ == "__main__":
     import cv2
     import matplotlib.pyplot as plt
-    img_path = "data/cocoOriginal/images/val/000000009483.jpg"
-    ckpt_path = "checkpoints/cocoBest/best_epoch.pth"
+    import argparse
 
-    img  = cv2.imread(img_path)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model_name', type=str, default="vgg2016", help='モデル名')
+    parser.add_argument('-cw1', '--conv_width', type=float, default=1.0, help='Convの幅')
+    parser.add_argument('-cw2', '--conv_width2', type=float, default=1.0, help='Conv2の幅')
+    parser.add_argument('-i', '--img_path', type=str, default="data/cocoOriginal/images/val/000000009483.jpg", help='画像のパス')
+    parser.add_argument('-c', '--ckpt_path', type=str, default="checkpoints/shuffle10/best_epoch.pth", help='チェックポイントのパス')
+    parser.add_argument('--preprocess', type=str, default="vgg", choices=["vgg", "rtpose"], help='前処理の種類')
+    args = parser.parse_args()
+    
 
-    model = get_model()
-    model = load_ckpt(model, ckpt_path)
-    heatmaps, pafs, im_data, im_scale = get_outputs(img, model, 'vgg')
+    
+
+
+    img  = cv2.imread(args.img_path)
+
+    model = get_model(
+        model_name=args.model_name,
+        pretrained_path=None,
+        imagenet_pretrained=False,
+        conv_width=args.conv_width,
+        conv_width2=args.conv_width2
+    )
+
+    model = load_ckpt(model, args.ckpt_path)
+    heatmaps, pafs, im_data, im_scale = get_outputs(img, model, args.preprocess)
     print("im_data shape:", im_data.shape)
     print("im_scale:", im_scale)
     print("heatmap shape:", heatmaps.shape)

@@ -19,22 +19,7 @@ from lib.utils.paf_to_pose import paf_to_pose_cpp
 from lib.evaluate.evaluation import load_ckpt, get_outputs
 
 # モデルのインポート
-from lib.network.mobilenetV2 import get_model
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--cfg', help='experiment configure file name',
-#                     default='./experiments/vgg19_368x368_sgd.yaml', type=str)
-# parser.add_argument('--weight', type=str,
-#                     default='../ckpts/openpose.pth')
-# parser.add_argument('opts',
-#                     help="Modify config options using the command-line",
-#                     default=None,
-#                     nargs=argparse.REMAINDER)
-# args = parser.parse_args()
-
-# # update config file
-# update_config(cfg, args)
-
+from lib.network.networks import get_model
 
 '''
 (0-'head'  1-'left_shoulder'  2-'left_elbow'  3-'left_wrist'  4-'right_shoulder'
@@ -47,9 +32,14 @@ DATA_DIR = './data/'
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model', type=str, default='vgg2016', help='使用するモデル名')
     parser.add_argument('-c', '--ckpt', type=str, help='pthファイルのパス')
     parser.add_argument('-d', '--data_dir', type=str, help='データセットディレクトリ名')
+    parser.add_argument('-cw1', '--conv_width1', type=float, default=1.0, help='Convの幅')
+    parser.add_argument('-cw2', '--conv_width2', type=float, default=1.0, help='Conv2の幅')
+    parser.add_argument('--preprocess', type=str, default='vgg', choices=['vgg', 'rtpose'], help='前処理の種類')
     args = parser.parse_args()
+
 
     # データのパス設定
     args.test_image_dir = os.path.join(DATA_DIR, args.data_dir, 'images/val') 
@@ -57,7 +47,11 @@ def main():
 
 
     # モデルの選択
-    model = get_model()
+    model = get_model(
+        model_name=args.model,
+        conv_width=args.conv_width1,
+        conv_width2=args.conv_width2
+    )
 
     # チェックポイントのロード
     model = load_ckpt(model, args.ckpt)
