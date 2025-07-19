@@ -1,30 +1,13 @@
-import os
-import re
-import sys
-sys.path.append('.')
 import cv2
-import math
-import time
-import scipy
 import argparse
-import matplotlib
 import numpy as np
-import pylab as plt
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
-from collections import OrderedDict
-from scipy.ndimage import generate_binary_structure
-from scipy.ndimage import gaussian_filter, maximum_filter
 
-from lib.network.rtpose_vgg import get_model
-from lib.network import im_transform
-from lib.config import update_config, cfg
-from evaluate.coco_eval import get_outputs, handle_paf_and_heat
-from lib.utils.common import Human, BodyPart, CocoPart, CocoColors, CocoPairsRender, draw_humans
+from lib.evaluate.estimator import load_ckpt, get_outputs, get_using_device
+from lib.config import cfg
+from lib.utils.common import draw_humans
 from lib.utils.paf_to_pose import paf_to_pose_cpp
-import ffmpeg    
+import ffmpeg
 
 def check_rotation(path_video_file):
     # this returns meta-data of the video file in form of a dictionary
@@ -46,24 +29,17 @@ def correct_rotation(frame, rotateCode):
     return cv2.rotate(frame, rotateCode) 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--cfg', help='experiment configure file name',
-                    default='./experiments/vgg19_368x368_sgd.yaml', type=str)
-parser.add_argument('--weight', type=str,
-                    default='pose_model.pth')
-parser.add_argument('opts',
-                    help="Modify config options using the command-line",
-                    default=None,
-                    nargs=argparse.REMAINDER)
+parser.add_argument('-m', '--model', type=str, required=True, default='vgg2016')
+parser.add_argument('-c', '--ckpt_path', type=str, default='pose_model.pth')
+parser.add_argument('-i', '--input_image', type=str, default='coco')
+parser.add_argument('-o', '--output_image', type=str, default='result.png')
+parser.add_argument('-d', '--device', type=str, default=None, choices=['cpu', 'cuda', 'mps'], help='使用するデバイス')
 args = parser.parse_args()
 
-# update config file
-update_config(cfg, args)   
+device = get_using_device(args.device)
 
-model = get_model('vgg19')     
-model.load_state_dict(torch.load(args.weight))
-model.cuda()
-model.float()
-model.eval()
+model = get_outputs(args.model)     
+model = load_ckpt(model, args.ckpt_path, device)
 rotate_code = cv2.ROTATE_180
 if __name__ == "__main__":
     video_path = input("Enter video path")
