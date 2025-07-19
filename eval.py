@@ -8,15 +8,12 @@ import json
 from pycocotools.coco import COCO
 from lib.evaluate.cocoeval import COCOeval
 from tqdm import tqdm
-import torch
-from lib.datasets.preprocessing import (inception_preprocess,
-                                              rtpose_preprocess,
-                                              ssd_preprocess, vgg_preprocess)
+
 from lib.config import cfg
-from lib.utils.common import Human, BodyPart, CustomPart, CustomColors, CustomPairsRender, draw_humans
+from lib.utils.common import draw_humans
 from lib.utils.paf_to_pose import paf_to_pose_cpp
 
-from lib.evaluate.evaluation import load_ckpt, get_outputs
+from lib.evaluate.estimator import load_ckpt, get_outputs, get_using_device
 
 # モデルのインポート
 from lib.network.networks import get_model
@@ -35,11 +32,10 @@ def main():
     parser.add_argument('-m', '--model', type=str, default='vgg2016', help='使用するモデル名')
     parser.add_argument('-c', '--ckpt', type=str, help='pthファイルのパス')
     parser.add_argument('-d', '--data_dir', type=str, help='データセットディレクトリ名')
-    parser.add_argument('-cw1', '--conv_width1', type=float, default=1.0, help='Convの幅')
-    parser.add_argument('-cw2', '--conv_width2', type=float, default=1.0, help='Conv2の幅')
     parser.add_argument('--preprocess', type=str, default='vgg', choices=['vgg', 'rtpose'], help='前処理の種類')
     args = parser.parse_args()
 
+    device = get_using_device()
 
     # データのパス設定
     args.test_image_dir = os.path.join(DATA_DIR, args.data_dir, 'images/val') 
@@ -47,18 +43,13 @@ def main():
 
 
     # モデルの選択
-    model = get_model(
-        model_name=args.model,
-        conv_width=args.conv_width1,
-        conv_width2=args.conv_width2
-    )
+    model = get_model(model_name=args.model)
 
     # チェックポイントのロード
-    model = load_ckpt(model, args.ckpt)
+    model = load_ckpt(model, args.ckpt, device)
 
     # 評価
-    run_eval(image_dir=args.test_image_dir, anno_file=args.test_annotation_file, vis_dir='results/', model=model, preprocess='vgg')
-
+    run_eval(image_dir=args.test_image_dir, anno_file=args.test_annotation_file, vis_dir='results/', model=model, preprocess='vgg', device=device)
 
 
 def eval_coco(outputs, annFile, imgIds):
@@ -116,7 +107,7 @@ def append_result(image_id, humans, upsample_keypoints, outputs):
 
 
         
-def run_eval(image_dir, anno_file, vis_dir, model, preprocess):
+def run_eval(image_dir, anno_file, vis_dir, model, preprocess, device):
     """評価"""
     
     coco = COCO(anno_file)
@@ -139,7 +130,7 @@ def run_eval(image_dir, anno_file, vis_dir, model, preprocess):
         shape_dst = np.min(oriImg.shape[0:2])
 
         # モデルの出力を取得
-        paf, heatmap, scale_img = get_outputs(oriImg, model,  preprocess)
+        paf, heatmap, scale_img = get_outputs(oriImg, model,  preprocess, device)
 
         # pafprocess
         humans = paf_to_pose_cpp(heatmap, paf, cfg)
@@ -153,7 +144,7 @@ def run_eval(image_dir, anno_file, vis_dir, model, preprocess):
         upsample_keypoints = (heatmap.shape[0]*cfg.MODEL.DOWNSAMPLE/scale_img, heatmap.shape[1]*cfg.MODEL.DOWNSAMPLE/scale_img)
         append_result(img_ids[i], humans, upsample_keypoints, outputs)
 
-    # Eval and show the final result!
+    # 評価を出力
     return eval_coco(outputs=outputs, annFile=anno_file, imgIds=img_ids)
 
 

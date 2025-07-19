@@ -10,9 +10,7 @@ from . import shufflenetV2
 def get_model(
         model_name='vgg2016',
         pretrained_path=None,
-        imagenet_pretrained=False,
-        conv_width=1.0,
-        conv_width2=1.0):
+        imagenet_pretrained=False):
 
     if model_name == 'vgg2016':
         return vgg2016.load_model(
@@ -23,22 +21,50 @@ def get_model(
     elif model_name == 'mobilenet':
         return mobilenet.load_model(
             pretrained_path=pretrained_path,
-            conv_width=conv_width,
-            conv_width2=conv_width2
+            conv_width=1.0,
+            conv_width2=1.0
+        )
+    
+    elif model_name == 'mobilenet_thin':
+        return mobilenet.load_model(
+            pretrained_path=pretrained_path,
+            conv_width=0.75,
+            conv_width2=0.50
         )
     
     elif model_name == 'mobilenetV2':
         return mobilenetV2.load_model(
             pretrained_path=pretrained_path,
-            conv_width=conv_width,
-            conv_width2=conv_width2
+            conv_width=1.0,
+            conv_width2=1.0
         )
     
-    elif model_name == 'shufflenetV2':
+    elif model_name == 'mobilenetV2_large':
+        return mobilenetV2.load_model(
+            pretrained_path=pretrained_path,
+            conv_width=1.4,
+            conv_width2=1.0
+        )
+    
+    elif model_name == 'mobilenetV2_small':
+        return mobilenetV2.load_model(
+            pretrained_path=pretrained_path,
+            conv_width=0.50,
+            conv_width2=0.50
+        )
+    
+    elif model_name == 'shufflenetV2_1.0x':
         return shufflenetV2.load_model(
             pretrained_path=pretrained_path,
-            conv_width=conv_width,
-            conv_width2=conv_width2
+            conv_width=1.0,
+            conv_width2=1.0
+        )
+    
+    elif model_name == 'shufflenetV2_0.5x':
+        return shufflenetV2.load_model(
+            pretrained_path=pretrained_path,
+            conv_width=0.5,
+            conv_width2=0.5
         )
 
 if __name__ == "__main__":
@@ -51,8 +77,13 @@ if __name__ == "__main__":
     model_list = [
         'vgg2016',
         'mobilenet',
+        'mobilenet_thin',
         'mobilenetV2',
-        'shufflenetV2'
+        'mobilenetV2_large',
+        'mobilenetV2_small',
+        'shufflenetV2',
+        'shufflenetV2_1.0x',
+        'shufflenetV2_0.5x'
     ]
 
 

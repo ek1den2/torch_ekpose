@@ -40,10 +40,6 @@ def main():
     parser.add_argument('--square_size', type=int, default=160, help='リサイズ後の正方形サイズ')
     parser.add_argument('--loader_workers', type=int, default=8, help='データローダーのワーカー数')
 
-    # モデルの設定
-    parser.add_argument('-cw1', '--conv_width1', type=float, default=1.0, help='Convの倍率')
-    parser.add_argument('-cw2', '--conv_width2', type=float, default=1.0, help='Conv2の倍率')
-
     # ログの設定
     parser.add_argument('--training_curve', action='store_true', help='学習曲線を保存するか')
     parser.add_argument('--save_epoch', type=int, default=20, help='モデルの保存間隔（エポック数）')
@@ -104,9 +100,7 @@ def main():
     model = get_model(
         model_name=args.model,
         pretrained_path=args.pretrained_path,
-        imagenet_pretrained=args.imagenet_pretrained,
-        conv_width=args.conv_width1,
-        conv_width2=args.conv_width2
+        imagenet_pretrained=args.imagenet_pretrained
     )
 
     model = torch.nn.DataParallel(model).cuda()
