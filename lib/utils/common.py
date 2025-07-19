@@ -216,6 +216,7 @@ def draw_humans(npimg, humans, imgcopy=False):
     if imgcopy:
         npimg = np.copy(npimg)
     image_h, image_w = npimg.shape[:2]
+    scale = (image_h + image_w) / 2.0 / 1000    # 点・線のスケール制御
     centers = {}
     for human in humans:
         # 点を描画
@@ -226,15 +227,13 @@ def draw_humans(npimg, humans, imgcopy=False):
             body_part = human.body_parts[i]
             center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
             centers[i] = center
-            cv2.circle(npimg, center, 1, CustomColors[i], thickness=3, lineType=8, shift=0)
+            cv2.circle(npimg, center, 1, CustomColors[i], thickness=int(10*scale), lineType=8)
 
-        # 線を描画
-        for pair_order, pair in enumerate(CustomPairsRender):
+        # 線を描画（最後2つは描画しない）
+        for pair_order, pair in enumerate(CustomPairsRender[:-2]):
             if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():
                 continue
-
-            # npimg = cv2.line(npimg, centers[pair[0]], centers[pair[1]], common.CustomColors[pair_order], 3)
-            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], 1)
+            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], int(2*scale))
 
     return npimg
     
