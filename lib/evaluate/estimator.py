@@ -4,12 +4,27 @@ import numpy as np
 from lib.datasets.preprocessing import vgg_preprocess, rtpose_preprocess
 import cv2
 
-def load_ckpt(model, ckpt_path):
+def get_using_device(device=None):
+    if torch.cuda.is_available() or (device == 'cuda'):
+        print(">>>> Using CUDA (Nvidia)<<<<")
+        return torch.device("cuda")
+
+    # PyTorch <=1.12 ではMPSが利用できない場合がある
+    elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available() or (device == 'mps'):
+        print(">>>> Using MPS (Apple Silicon GPU)<<<<")
+        return torch.device("mps")
+
+    else:
+        print(">>>> Using CPU<<<<")
+        return torch.device("cpu")
+
+
+def load_ckpt(model, ckpt_path, device):
     """チェックポイントをロード"""
 
     print("INFO: Loading Checkpoint...")
     with torch.autograd.no_grad():
-        state_dict = torch.load(ckpt_path)
+        state_dict = torch.load(ckpt_path, map_location=device)
 
         # nn.parallelによるマルチGPUのモデル情報をシングルGPU用に変換
         new_state_dict = OrderedDict()
@@ -22,7 +37,7 @@ def load_ckpt(model, ckpt_path):
 
         model.eval()
         model.float()
-        model = model.cuda()
+        model = model.to(device)
     
     return model
 
@@ -53,9 +68,9 @@ def padding(im, dest_size, factor=8, is_ceil=True):
     return im_pad, im_scale, im.shape
 
 
-def get_outputs(image, model, preprocess):
+def get_outputs(image, model, preprocess, device):
 
-    im_cloped, im_scale, pad = padding(image, 160, factor=8, is_ceil=True)
+    im_cloped, im_scale, pad = padding(image, 368, factor=8, is_ceil=True)
     
     if preprocess == 'vgg':
         im_data = vgg_preprocess(im_cloped)
@@ -64,7 +79,7 @@ def get_outputs(image, model, preprocess):
 
     batch_image = np.expand_dims(im_data, 0)
 
-    batch_var = torch.from_numpy(batch_image).float().cuda()
+    batch_var = torch.from_numpy(batch_image).float().to(device)
     predicted, _ = model(batch_var)
     output1, output2 = predicted[-2], predicted[-1]
     pafs = output1.cpu().data.numpy().transpose(0, 2, 3, 1)[0]
