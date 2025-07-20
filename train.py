@@ -129,7 +129,7 @@ def main():
         # 特徴マップのレイヤーを凍結
         # print(model.module) # モデルの構造を確認し凍結する層を決定　eg. OpenPose -> model -> (各層)
         for i in range(20):
-            for param in model.module.model0[i].parameters():
+            for param in model.module.model0.backbone.parameters():
                 param.requires_grad = False
 
 
