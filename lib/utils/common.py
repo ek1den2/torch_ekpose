@@ -227,13 +227,13 @@ def draw_humans(npimg, humans, imgcopy=False):
             body_part = human.body_parts[i]
             center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
             centers[i] = center
-            cv2.circle(npimg, center, 1, CustomColors[i], thickness=int(10*scale), lineType=8)
+            cv2.circle(npimg, center, 1, CustomColors[i], thickness=max(1, int(10*scale)), lineType=8)
 
         # 線を描画（最後2つは描画しない）
         for pair_order, pair in enumerate(CustomPairsRender[:-2]):
             if pair[0] not in human.body_parts.keys() or pair[1] not in human.body_parts.keys():
                 continue
-            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], int(2*scale))
+            cv2.line(npimg, centers[pair[0]], centers[pair[1]], CustomColors[pair_order], max(1, int(2*scale)))
 
     return npimg
     
