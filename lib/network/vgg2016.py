@@ -137,9 +137,9 @@ def load_model(pretrained_path=None, imagenet_pretrained=False):
     elif imagenet_pretrained:
         print('>>> Loading imagenet pretrained model <<<')
         pretrained = models.vgg19(weights=models.VGG19_Weights.IMAGENET1K_V1)
-        backbone_state_dict = model.backbone.state_dict()
+        backbone_state_dict = model.model0.backbone.state_dict()
         pretrained_dict = {k: v for k, v in pretrained.state_dict().items() if k in backbone_state_dict}
         backbone_state_dict.update(pretrained_dict)
-        model.backbone.load_state_dict(backbone_state_dict)
-    
+        model.model0.backbone.load_state_dict(backbone_state_dict)
+
     return model
