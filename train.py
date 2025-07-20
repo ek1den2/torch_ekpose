@@ -124,13 +124,13 @@ def main():
 
     # 事前学習済みモデルを使用する場合
     # 最初の5エポックは特徴マップのレイヤーを凍結して学習
-    if args.pretrained_path or args.imagenet_pretrained:
         
-        # 特徴マップのレイヤーを凍結
-        # print(model.module) # モデルの構造を確認し凍結する層を決定　eg. OpenPose -> model -> (各層)
-        for i in range(20):
-            for param in model.module.model0.backbone.parameters():
-                param.requires_grad = False
+    # 特徴マップのレイヤーを凍結
+    # print(model.module) # モデルの構造を確認し凍結する層を決定　eg. OpenPose -> model -> (各層)
+    if args.imagenet_pretrained:
+        for param in model.module.model0.backbone.parameters():
+            param.requires_grad = False
+    
 
 
         # 学習が可能なパラメータの取得
