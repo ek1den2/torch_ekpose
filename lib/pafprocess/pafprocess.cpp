@@ -170,7 +170,7 @@ int process_paf(int p1, int p2, int p3, float *peaks, int h1, int h2, int h3, fl
                     subset[subset_idx1][15] += 1;
                     subset[subset_idx1][14] += peak_infos_line[conns[conn_id].cid2].score + conns[conn_id].score;
                 }
-            } else if (found == 0 && pair_id < 15) {
+            } else if (found == 0 && pair_id < 13) {
                 vector<float> row(16);
                 for (int i = 0; i < 16; i++) row[i] = -1;
                 row[part_id1] = conns[conn_id].cid1;
