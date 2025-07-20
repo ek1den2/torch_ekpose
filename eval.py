@@ -26,6 +26,7 @@ from lib.network.networks import get_model
 
 ORDER_CUSTOM = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 DATA_DIR = './data/'
+CKPT_DIR = './checkpoints/'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -40,13 +41,14 @@ def main():
     # データのパス設定
     args.test_image_dir = os.path.join(DATA_DIR, args.data_dir, 'images/val') 
     args.test_annotation_file = os.path.join(DATA_DIR, args.data_dir, 'annotations_val.json')
+    ckpt_path = os.path.join(CKPT_DIR, args.model, args.ckpt)
 
 
     # モデルの選択
     model = get_model(model_name=args.model)
 
     # チェックポイントのロード
-    model = load_ckpt(model, args.ckpt, device)
+    model = load_ckpt(model, ckpt_path, device)
 
     # 評価
     run_eval(image_dir=args.test_image_dir, anno_file=args.test_annotation_file, vis_dir='results/', model=model, preprocess='vgg', device=device)
