@@ -1,4 +1,3 @@
-# IRPose
-赤外線姿勢推定モデル
+# torch_ekpose
 
-Install pytorch >= v1.9.1 
+PyTorchによるtf-pose-estimation実装
