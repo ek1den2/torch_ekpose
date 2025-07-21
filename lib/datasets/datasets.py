@@ -13,21 +13,25 @@ from . import transforms, utils
 
 def kp_connections(keypoints):
     kp_lines = [
-        [keypoints.index('neck'), keypoints.index('head')],             # (0, 1)
-        [keypoints.index('neck'), keypoints.index('l_shoulder')],       # (2, 3)
-        [keypoints.index('l_shoulder'), keypoints.index('l_elbow')],    # (4, 5)
-        [keypoints.index('l_elbow'), keypoints.index('l_wrist')],       # (6, 7)
-        [keypoints.index('neck'), keypoints.index('r_shoulder')],       # (8, 9)
-        [keypoints.index('r_shoulder'), keypoints.index('r_elbow')],    # (10, 11)
-        [keypoints.index('r_elbow'), keypoints.index('r_wrist')],       # (12, 13)
-        [keypoints.index('neck'), keypoints.index('l_hip')],            # (14, 15)
-        [keypoints.index('l_hip'), keypoints.index('l_knee')],          # (16, 17)
-        [keypoints.index('l_knee'), keypoints.index('l_ankle')],        # (18, 19)
-        [keypoints.index('neck'), keypoints.index('r_hip')],            # (20, 21)
-        [keypoints.index('r_hip'), keypoints.index('r_knee')],          # (22, 23)
-        [keypoints.index('r_knee'), keypoints.index('r_ankle')],        # (24, 25)
-        [keypoints.index('head'), keypoints.index('l_shoulder')],       # (26, 27)
-        [keypoints.index('head'), keypoints.index('r_shoulder')]        # (28, 29)
+        [keypoints.index('neck'), keypoints.index('right_hip')],  
+        [keypoints.index('right_hip'), keypoints.index('right_knee')],
+        [keypoints.index('right_knee'), keypoints.index('right_ankle')],
+        [keypoints.index('neck'), keypoints.index('left_hip')],                
+        [keypoints.index('left_hip'), keypoints.index('left_knee')],
+        [keypoints.index('left_knee'), keypoints.index('left_ankle')],
+        [keypoints.index('neck'), keypoints.index('right_shoulder')],          
+        [keypoints.index('right_shoulder'), keypoints.index('right_elbow')],
+        [keypoints.index('right_elbow'), keypoints.index('right_wrist')],     
+        [keypoints.index('right_shoulder'), keypoints.index('right_eye')],        
+        [keypoints.index('neck'), keypoints.index('left_shoulder')], 
+        [keypoints.index('left_shoulder'), keypoints.index('left_elbow')],
+        [keypoints.index('left_elbow'), keypoints.index('left_wrist')],
+        [keypoints.index('left_shoulder'), keypoints.index('left_eye')],               
+        [keypoints.index('neck'), keypoints.index('nose')],                      
+        [keypoints.index('nose'), keypoints.index('right_eye')],
+        [keypoints.index('nose'), keypoints.index('left_eye')],        
+        [keypoints.index('right_eye'), keypoints.index('right_ear')],
+        [keypoints.index('left_eye'), keypoints.index('left_ear')]
     ]
     return kp_lines
     
@@ -35,20 +39,24 @@ def get_keypoints():
     """COCOキーポイントとその左右反転対応マップを取得"""
 
     keypoints = [
-        'head',       # 1
-        'neck',       # 2
-        'l_shoulder', # 3
-        'l_elbow',    # 4
-        'l_wrist',    # 5
-        'r_shoulder', # 6
-        'r_elbow',    # 7
-        'r_wrist',    # 8
-        'l_hip',      # 9
-        'l_knee',     # 10
-        'l_ankle',    # 11
-        'r_hip',      # 12
-        'r_knee',     # 13
-        'r_ankle'     # 14
+        'nose',
+        'neck',
+        'right_shoulder',
+        'right_elbow',
+        'right_wrist',   
+        'left_shoulder',
+        'left_elbow',
+        'left_wrist',
+        'right_hip',
+        'right_knee',
+        'right_ankle',
+        'left_hip',
+        'left_knee',
+        'left_ankle',
+        'right_eye',                                                                    
+        'left_eye',
+        'right_ear',
+        'left_ear'
     ]
 
     return keypoints
@@ -80,7 +88,7 @@ def collate_images_targets_meta(batch):
     return images, targets1, targets2
 
 
-class CustomKeypoints(torch.utils.data.Dataset):
+class CocoKeypoints(torch.utils.data.Dataset):
     """独自データクラス"""
 
     def __init__(self, root, annFile, image_transform=None, target_transforms=None,
@@ -202,11 +210,11 @@ class CustomKeypoints(torch.utils.data.Dataset):
         
     def add_neck(self, keypoint):
         """キーポイントにneckを追加"""
-        our_order = [0, 13, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        our_order = [0, 17, 6, 8, 10, 5, 7, 9, 12, 14, 16, 11, 13, 15, 2, 1, 4, 3]
 
         # 1が左肩、4が右肩
-        left_shoulder = keypoint[1, :]
-        right_shoulder = keypoint[4, :]
+        left_shoulder = keypoint[6, :]
+        right_shoulder = keypoint[5, :]
         neck = (right_shoulder + left_shoulder) / 2
         if right_shoulder[2] == 2 and left_shoulder[2] == 2:
             neck[2] = 2
@@ -233,7 +241,7 @@ class CustomKeypoints(torch.utils.data.Dataset):
 
         keypoints = []
         for ann in anns:
-            single_keypoints = np.array(ann['keypoints']).reshape(13,3) # 13キーポイント
+            single_keypoints = np.array(ann['keypoints']).reshape(17,3) # 17キーポイント
             single_keypoints = self.add_neck(single_keypoints)
             keypoints.append(single_keypoints)
         keypoints = np.array(keypoints)

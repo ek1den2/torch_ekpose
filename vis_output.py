@@ -144,7 +144,7 @@ if __name__ == "__main__":
     
 
     plt.figure(figsize=(20, 4)) 
-    for i in range(15):
+    for i in range(19):
         plt.subplot(3, 5, i+1)
         plt.imshow(heatmaps[:, :, i], cmap='jet', vmin=0, vmax=1)
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     plt.show()
 
     plt.figure(figsize=(20, 4)) 
-    for i in range(30):
+    for i in range(38):
         plt.subplot(5, 6, i+1)
         plt.imshow(pafs[:, :, i], cmap='jet', vmin=0, vmax=1)
 

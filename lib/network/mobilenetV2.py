@@ -158,7 +158,7 @@ class OpenPose(nn.Module):
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
-            DSConv(depth2(512), 30, 1, 1, 0, relu=False)
+            DSConv(depth2(512), 38, 1, 1, 0, relu=False)
         )
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
@@ -167,27 +167,27 @@ class OpenPose(nn.Module):
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(128), 3, 1, 1),
             DSConv(depth2(128), depth2(512), 1, 1, 0),
-            DSConv(depth2(512), 15, 1, 1, 0, relu=False)
+            DSConv(depth2(512), 19, 1, 1, 0, relu=False)
         )
         
         # Stage 2 - 6
         for stage in range(2, 7):
-            # L1ブランチ（出力30チャンネル）
+            # L1ブランチ（出力38チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                DSConv(depth(128)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth(128)+38+19, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
-                DSConv(depth2(128), 30, 1, 1, 0, relu=False)
+                DSConv(depth2(128), 38, 1, 1, 0, relu=False)
             ))
-            
-            # L2ブランチ（出力15チャンネル）
+
+            # L2ブランチ（出力19チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                DSConv(depth(128)+30+15, depth2(128), 3, 1, 1),
+                DSConv(depth(128)+38+19, depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 3, 1, 1),
                 DSConv(depth2(128), depth2(128), 1, 1, 0),
-                DSConv(depth2(128), 15, 1, 1, 0, relu=False)
+                DSConv(depth2(128), 19, 1, 1, 0, relu=False)
             ))
 
         self._initialize_weights_norm()

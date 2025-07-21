@@ -254,7 +254,7 @@ def data_loader(args, preprocess, target_transforms):
         """データローダーを作成"""
         # 訓練データ
         print("Loading train dataset...")
-        train_datas = [datasets.CustomKeypoints(
+        train_datas = [datasets.CocoKeypoints(
             root=args.train_image_dir,
             annFile=item,
             preprocess=preprocess,
@@ -277,7 +277,7 @@ def data_loader(args, preprocess, target_transforms):
 
         # 検証データ
         print("Loading val dataset...")
-        val_data = datasets.CustomKeypoints(
+        val_data = datasets.CocoKeypoints(
             root=args.val_image_dir,
             annFile=args.val_annotation_file,
             preprocess=preprocess,

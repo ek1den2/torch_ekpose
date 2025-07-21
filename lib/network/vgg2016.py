@@ -39,7 +39,7 @@ class OpenPose(nn.Module):
             nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
             nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
             nn.Conv2d(128, 512, 1, 1, 0), nn.ReLU(inplace=True),
-            nn.Conv2d(512, 30, 1, 1, 0)
+            nn.Conv2d(512, 38, 1, 1, 0)
         )
         
         # Stage 1 - L2ブランチ（Part Confidence Maps）
@@ -48,31 +48,31 @@ class OpenPose(nn.Module):
             nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
             nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
             nn.Conv2d(128, 512, 1, 1, 0), nn.ReLU(inplace=True),
-            nn.Conv2d(512, 15, 1, 1, 0)
+            nn.Conv2d(512, 19, 1, 1, 0)
         )
 
         # Stage 2 - 6
         for stage in range(2, 7):
-            # L1ブランチ（出力30チャンネル）
+            # L1ブランチ（出力38チャンネル）
             setattr(self, f'model{stage}_1', nn.Sequential(
-                nn.Conv2d(173, 128, 7, 1, 3), nn.ReLU(inplace=True),
+                nn.Conv2d(128+38+19, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 1, 1, 0), nn.ReLU(inplace=True),
-                nn.Conv2d(128, 30, 1, 1, 0)
+                nn.Conv2d(128, 38, 1, 1, 0)
             ))
             
-            # L2ブランチ（出力15チャンネル）
+            # L2ブランチ（出力19チャンネル）
             setattr(self, f'model{stage}_2', nn.Sequential(
-                nn.Conv2d(173, 128, 7, 1, 3), nn.ReLU(inplace=True),
+                nn.Conv2d(128+38+19, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 7, 1, 3), nn.ReLU(inplace=True),
                 nn.Conv2d(128, 128, 1, 1, 0), nn.ReLU(inplace=True),
-                nn.Conv2d(128, 15, 1, 1, 0)
+                nn.Conv2d(128, 19, 1, 1, 0)
             ))
 
 

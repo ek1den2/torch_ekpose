@@ -13,7 +13,7 @@ _C = CN()
 # common params for NETWORK
 _C.MODEL = CN()
 
-_C.MODEL.NUM_KEYPOINTS = 14
+_C.MODEL.NUM_KEYPOINTS = 18
 _C.MODEL.DOWNSAMPLE = 8
 
 

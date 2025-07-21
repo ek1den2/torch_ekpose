@@ -6,7 +6,7 @@ from scipy.ndimage.filters import gaussian_filter, maximum_filter
 from scipy.ndimage.morphology import generate_binary_structure
 from lib.pafprocess import pafprocess
 
-from lib.utils.common import Human, BodyPart, CustomPart, CustomColors, CustomPairsRender
+from lib.utils.common import Human, BodyPart
 
 # 各四肢（関節の接続）を見つけるためのヒートマップのインデックス。
 # 例: limb_type=1 は 首 -> 左肩 なので、

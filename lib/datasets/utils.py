@@ -2,17 +2,17 @@ import functools
 import math
 import numpy as np
 
-from .skleton import CUSTOM_KEYPOINTS, HFLIP
+from .skleton import COCO_KEYPOINTS, HFLIP
 
 
 def horizontal_swap_coco(keypoints):
     target = np.zeros(keypoints.shape)
 
     for source_i, xyv in enumerate(keypoints):
-        source_name = CUSTOM_KEYPOINTS[source_i]
+        source_name = COCO_KEYPOINTS[source_i]
         target_name = HFLIP.get(source_name)
         if target_name:
-            target_i = CUSTOM_KEYPOINTS.index(target_name)
+            target_i = COCO_KEYPOINTS.index(target_name)
         else:
             target_i = source_i
         target[target_i] = xyv
