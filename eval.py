@@ -6,7 +6,7 @@ import numpy as np
 import argparse
 import json
 from pycocotools.coco import COCO
-from lib.evaluate.cocoeval import COCOeval
+from pycocotools.cocoeval import COCOeval
 from tqdm import tqdm
 
 from lib.config import cfg
