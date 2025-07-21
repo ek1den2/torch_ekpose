@@ -19,12 +19,21 @@ from lib.evaluate.estimator import load_ckpt, get_outputs, get_using_device
 from lib.network.networks import get_model
 
 '''
-(0-'head' 1-'neck' 2-'left_shoulder' 3-'left_elbow'  4-'left_wrist'  5-'right_shoulder'
-6-'right_elbow'  7-'right_wrist'  8-'left_hip'  9-'left_knee'  10-'left_ankle'
-11-'right_hip'  12-'right_knee'  13-'right_ankle')
+MS COCO annotation order:
+0: nose	   		1: l eye		2: r eye	3: l ear	4: r ear
+5: l shoulder	6: r shoulder	7: l elbow	8: r elbow
+9: l wrist		10: r wrist		11: l hip	12: r hip	13: l knee
+14: r knee		15: l ankle		16: r ankle
+
+The order in this work:
+(0-'nose'	1-'neck' 2-'right_shoulder' 3-'right_elbow' 4-'right_wrist'
+5-'left_shoulder' 6-'left_elbow'	    7-'left_wrist'  8-'right_hip'
+9-'right_knee'	 10-'right_ankle'	11-'left_hip'   12-'left_knee'
+13-'left_ankle'	 14-'right_eye'	    15-'left_eye'   16-'right_ear'
+17-'left_ear' )
 '''
 
-ORDER_CUSTOM = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+ORDER_COCO = [0, 15, 14, 17, 16, 5, 2, 6, 3, 7, 4, 11, 8, 12, 9, 13, 10]
 DATA_DIR = './data/'
 CKPT_DIR = './checkpoints/'
 
@@ -84,10 +93,10 @@ def append_result(image_id, humans, upsample_keypoints, outputs):
             "score": 0
         }
         one_result["image_id"] = image_id
-        keypoints = np.zeros((14, 3))       # 14 キーポイント
-        
+        keypoints = np.zeros((17, 3))       # 17 キーポイント
+
         all_scores = []
-        for i in range(14):     # 14 キーポイント
+        for i in range(17):     # 17 キーポイント
             if i not in human.body_parts.keys():
                 keypoints[i, 0] = 0
                 keypoints[i, 1] = 0
@@ -101,9 +110,9 @@ def append_result(image_id, humans, upsample_keypoints, outputs):
                 score = human.body_parts[i].score 
                 all_scores.append(score)
 
-        keypoints = keypoints[ORDER_CUSTOM,:]
+        keypoints = keypoints[ORDER_COCO,:]
         one_result["score"] = 1.
-        one_result["keypoints"] = list(keypoints.reshape(39))   # 13 * 3
+        one_result["keypoints"] = list(keypoints.reshape(51))   # 17 * 3
 
         outputs.append(one_result)
 
