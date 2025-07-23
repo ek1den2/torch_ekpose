@@ -32,12 +32,12 @@ WEIGHTS_DIR = './checkpoints/'
 def main():
     parser = argparse.ArgumentParser(description='OpenPose Training Script')
     parser.add_argument('-m', '--model', type=str, default='vgg2016', help='使用モデル名')
-    parser.add_argument('-d', '--data_dir', type=str, required=True, help='データセットディレクトリ名')
+    parser.add_argument('-d', '--datasets', type=str, required=True, help='データセットディレクトリ名')
     parser.add_argument('-b', '--batch_size', type=int, default=16, help='バッチサイズ')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='エポック数')
     parser.add_argument('--gpus', type=str, default='0', help='使用するGPUのID（カンマ区切り）')
     parser.add_argument('-l', '--lr', type=float, default=0.0001, help='学習率')
-    parser.add_argument('--square_size', type=int, default=160, help='リサイズ後の正方形サイズ')
+    parser.add_argument('--square_size', type=int, default=368, help='リサイズ後の正方形サイズ')
     parser.add_argument('--loader_workers', type=int, default=8, help='データローダーのワーカー数')
 
     # ログの設定
@@ -73,10 +73,10 @@ def main():
     sys.stdout = Logger(logfile)
 
     # データのパス設定
-    args.train_image_dir = os.path.join(DATA_DIR, args.data_dir, 'images/train')
-    args.val_image_dir = os.path.join(DATA_DIR, args.data_dir, 'images/val')
-    args.train_annotation_files = [os.path.join(DATA_DIR, args.data_dir, item) for item in ['annotations_train.json']]
-    args.val_annotation_file = os.path.join(DATA_DIR, args.data_dir, 'annotations_val.json')
+    args.train_image_dir = os.path.join(DATA_DIR, args.datasets, 'images/train')
+    args.val_image_dir = os.path.join(DATA_DIR, args.datasets, 'images/val')
+    args.train_annotation_files = [os.path.join(DATA_DIR, args.datasets, item) for item in ['annotations_train.json']]
+    args.val_annotation_file = os.path.join(DATA_DIR, args.datasets, 'annotations_val.json')
 
     print("settings:")
     print(vars(args))
