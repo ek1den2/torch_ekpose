@@ -139,7 +139,7 @@ def run_eval(image_dir, anno_file, vis_dir, model, preprocess, device, args):
     outputs = []
     print("\nvvvvvvvvvvv Start Test vvvvvvvvvvv\n")
 
-    for i in tqdm(range(1000)):
+    for i in tqdm(range(len(img_ids))):
         
         img = coco.loadImgs(img_ids[i])[0]
         file_name = img['file_name']
