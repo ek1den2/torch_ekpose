@@ -4,6 +4,33 @@ PyTorchによるtf-pose-estimation実装
 
 # インストール
 
+1. 
+2. ディレクトリの構成
+   ```
+   torch_ekpose
+   ├── checkpoints
+   ├── data
+   ├── demo
+   |   └── outputs
+   ├── experiments
+   ├── lib
+   └── logs
+   ```
+3. データセットの内部
+   ```
+   data
+   ├── coco
+       ├── annotations_train.json
+       ├── annotations_val.json
+       └── images
+           ├── train
+           |   ├── ~~~.jpeg
+           |   :
+           |
+           └── val
+               ├── ~~~.jpeg
+               :
+   ```
 
 # 学習
 ```s
@@ -33,3 +60,5 @@ $ python run_video.py --model vgg2016 --ckpt ./checkpoints/vgg2016/best_epoch.pt
 ```s
 $ python run_webcam.py --model vgg2016 --ckpt ./checkpoints/vgg2016/best_epoch.pth
 ``` 
+
+## To Do
