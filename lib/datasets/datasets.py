@@ -82,22 +82,25 @@ def collate_multiscale_images_anns_meta(batch):
 def collate_images_targets_meta(batch):
 
     images = torch.utils.data.dataloader.default_collate([b[0] for b in batch])
-    targets1 = torch.utils.data.dataloader.default_collate([b[1] for b in batch])
-    targets2 = torch.utils.data.dataloader.default_collate([b[2] for b in batch])    
+    targets1 = torch.utils.data.dataloader.default_collate([b[1] for b in batch])   # heatmap
+    targets2 = torch.utils.data.dataloader.default_collate([b[2] for b in batch])   # pafs
+    masks = torch.utils.data.dataloader.default_collate([b[3] for b in batch])      # mask
 
-    return images, targets1, targets2
+    return images, targets1, targets2, masks
 
 
 class CocoKeypoints(torch.utils.data.Dataset):
     """独自データクラス"""
 
-    def __init__(self, root, annFile, image_transform=None, target_transforms=None,
+    def __init__(self, root, mask_dir, annFile, image_transform=None, target_transforms=None,
                  n_images=None, preprocess=None, all_images=False, all_persons=False,
                  input_y=368, input_x=368, stride=8):
         from pycocotools.coco import COCO
         from contextlib import redirect_stdout
 
         self.root = root
+        self.mask_dir = mask_dir
+
         with redirect_stdout(io.StringIO()):
             self.coco = COCO(annFile)
 
@@ -151,6 +154,15 @@ class CocoKeypoints(torch.utils.data.Dataset):
         with open(os.path.join(self.root, image_info['file_name']), 'rb') as f:
             image = Image.open(f).convert('RGB')
 
+        # maskの読み込み
+        mask_path = os.path.join(self.mask_dir, 'mask_' + image_info['file_name'])
+        if os.path.exists(mask_path):
+            with open(mask_path, 'rb') as f:
+                mask_img = Image.open(f).convert('RGB')
+        else:
+            # マスクが存在しない場合はオール白のマスクを使用
+            mask_img = Image.new('RGB', image.size, (255, 255, 255))
+
         meta_init = {
             'dataset_index': index,
             'image_id': image_id,
@@ -158,19 +170,20 @@ class CocoKeypoints(torch.utils.data.Dataset):
         }
 
         image, anns, meta = self.preprocess(image, anns, None)
-             
+        mask = self.preprocess(mask_img, [], meta)[0]
+
         if isinstance(image, list):
-            return self.multi_image_processing(image, anns, meta, meta_init)
+            return self.multi_image_processing(image, mask, anns, meta, meta_init)
 
-        return self.single_image_processing(image, anns, meta, meta_init)
+        return self.single_image_processing(image, mask, anns, meta, meta_init)
 
-    def multi_image_processing(self, image_list, anns_list, meta_list, meta_init):
+    def multi_image_processing(self, image_list, mask_list, anns_list, meta_list, meta_init):
         return list(zip(*[
-            self.single_image_processing(image, anns, meta, meta_init)
-            for image, anns, meta in zip(image_list, anns_list, meta_list)
+            self.single_image_processing(image, mask, anns, meta, meta_init)
+            for image, mask, anns, meta in zip(image_list, mask_list, anns_list, meta_list)
         ]))
 
-    def single_image_processing(self, image, anns, meta, meta_init):
+    def single_image_processing(self, image, mask, anns, meta, meta_init):
         """単一の画像を処理"""
 
         meta.update(meta_init)
@@ -181,9 +194,12 @@ class CocoKeypoints(torch.utils.data.Dataset):
         assert image.size(2) == original_size[0]
         assert image.size(1) == original_size[1]
 
+        mask = self.image_transform(mask)
+
         # 有効領域のマスク
         valid_area = meta['valid_area']
         utils.mask_valid_area(image, valid_area)
+        utils.mask_valid_area(mask, valid_area)
 
         self.log.debug(meta)
 
@@ -193,8 +209,11 @@ class CocoKeypoints(torch.utils.data.Dataset):
         heatmaps = torch.from_numpy(
             heatmaps.transpose((2, 0, 1)).astype(np.float32))
             
-        pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))       
-        return image, heatmaps, pafs
+        pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))
+
+        mask = mask[0, :, :].unsqueeze(0)
+
+        return image, heatmaps, pafs, mask
 
     def remove_illegal_joint(self, keypoints):
         """画面外のキーポイントを除去"""

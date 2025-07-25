@@ -1,6 +1,6 @@
 # ディレクトリ
 checkpoints/
-data/
+data/coco*/
 logs/
 experiments/
 results/
