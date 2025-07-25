@@ -130,8 +130,11 @@ def run_eval(image_dir, anno_file, vis_dir, model, preprocess, device, args):
     """評価"""
     
     coco = COCO(anno_file)
-    cat_ids = coco.getCatIds(catNms=['person'])    
-    img_ids = coco.getImgIds(catIds=cat_ids)
+    if args.mode == 'val':
+        cat_ids = coco.getCatIds(catNms=['person'])    
+        img_ids = coco.getImgIds(catIds=cat_ids)
+    elif args.mode == 'test':
+        img_ids = coco.getImgIds()
     print(f"INFO: Test Data: {len(img_ids)}")
 
     # iterate all val images
