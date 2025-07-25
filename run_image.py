@@ -72,12 +72,14 @@ def process_image_analyze(model, device, inimg, outimg):
     out = draw_humans(oriImg, humans)
 
     h, w, _ = oriImg.shape
-    tmph = np.amax(heatmap[:, :, :-1], axis=2)
-    res_heatmap = cv2.resize(tmph, (w, h))
-    tmpvx = np.amax(paf[:, :, ::2], axis=2)
-    res_paf_x = cv2.resize(tmpvx, (w, h))
-    tmpvy = np.amax(paf[:, :, 1::2], axis=2)
-    res_paf_y = cv2.resize(tmpvy, (w, h))
+    resized_heatmap = cv2.resize(heatmap[:, :, :-1], (w, h))
+    res_heatmap = np.amax(resized_heatmap, axis=2)
+
+    resized_paf_x = cv2.resize(paf[:, :, ::2], (w, h))
+    res_paf_x = np.amax(resized_paf_x, axis=2)
+
+    resized_paf_y = cv2.resize(paf[:, :, 1::2], (w, h))
+    res_paf_y = np.amax(resized_paf_y, axis=2)
 
 
     # 姿勢推定画像
