@@ -58,7 +58,6 @@ def main():
     # チェックポイントのロード
     model = load_ckpt(model, args.ckpt, device)
 
-    save_flag = args.save
 
     # 評価
     run_eval(
