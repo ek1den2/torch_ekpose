@@ -23,7 +23,7 @@ args = parser.parse_args()
 device = get_using_device(args.device)
 
 model = get_model(args.model)     
-model = load_ckpt(model, args.ckpt_path, device)
+model = load_ckpt(model, args.ckpt, device)
 
 if platform.system() == 'Darwin':
     # macOSの場合は AVFoundation でないと動かない
