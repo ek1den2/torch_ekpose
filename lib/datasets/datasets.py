@@ -218,7 +218,6 @@ class CocoKeypoints(torch.utils.data.Dataset):
             size=target_size,
             mode='nearest')
         mask = resized_mask.squeeze(0)
-        print(f"mask shape: {mask.shape}, pafs shape: {pafs.shape}")
 
         return image, heatmaps, pafs, mask
 
