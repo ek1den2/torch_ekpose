@@ -212,6 +212,9 @@ class CocoKeypoints(torch.utils.data.Dataset):
         pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))
 
         mask = mask[0, :, :].unsqueeze(0)
+        mask = torch.nn.functional.interpolate(
+            mask, scale_factor=1/self.stride, mode='nearest'
+        )
 
         return image, heatmaps, pafs, mask
 
