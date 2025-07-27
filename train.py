@@ -366,6 +366,7 @@ def train(train_loader, model, optimizer, args):
         img = img.cuda()
         heatmap_target = heatmap_target.cuda()
         paf_target = paf_target.cuda()
+        mask = mask.cuda()
 
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
@@ -414,6 +415,7 @@ def validate(val_loader, model, args):
         img = img.cuda()
         heatmap_target = heatmap_target.cuda()
         paf_target = paf_target.cuda()
+        mask = mask.cuda()
 
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
