@@ -216,8 +216,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
         resized_mask = torch.nn.functional.interpolate(
             mask.unsqueeze(0),
             size=target_size,
-            mode='nearest',
-            align_corners=False)
+            mode='nearest')
         mask = resized_mask.squeeze(0)
         print(f"mask shape: {mask.shape}, pafs shape: {pafs.shape}")
 
