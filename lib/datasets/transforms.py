@@ -26,7 +26,7 @@ def display_annotations(image, anns, title):
     # 各人に対してアノテーションを描画
     for i, ann in enumerate(anns):        
         # キーポイントを取得
-        keypoints = ann['keypoints'].reshape(-1, 3)  # (13, 3)の形にリシェイプ
+        keypoints = ann['keypoints'].reshape(-1, 3)  # (17, 3)の形にリシェイプ
         
         # 可視性が0より大きいキーポイントのみ抽出
         visible_keypoints = keypoints[keypoints[:, 2] > 0]
@@ -42,7 +42,7 @@ def display_annotations(image, anns, title):
             plt.gca().add_patch(rect)
         
             # キーポイントを描画
-            keypoints = ann['keypoints'].reshape(-1, 3)  # (13, 3)の形にリシェイプ
+            keypoints = ann['keypoints'].reshape(-1, 3)  # (17, 3)の形にリシェイプ
             # キーポイントを点で描画
             plt.scatter(
                 visible_keypoints[:, 0], visible_keypoints[:, 1],
@@ -416,6 +416,9 @@ class HFlip(Preprocess):
     def __call__(self, image, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
+
+        if meta['hflip']:
+            return image, anns, meta
 
         w, _ = image.size
         image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)

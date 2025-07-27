@@ -294,7 +294,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
                         count=count, grid_y=grid_y, grid_x=grid_x, stride=self.stride
                     )
 
-        # 背景チャネル（14 "+1"の部分）。どのキーポイントでもない領域
+        # 背景チャネル（17 "+1"の部分）。どのキーポイントでもない領域
         heatmaps[:, :, -1] = np.maximum(
             1 - np.max(heatmaps[:, :, :self.HEATMAP_COUNT], axis=2),
             0.
