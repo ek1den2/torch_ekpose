@@ -14,47 +14,6 @@ from functools import partial, reduce
 from .utils import horizontal_swap_coco
 
 
-# 可視化
-def display_annotations(image, anns, title):
-    """
-    画像にキーポイントとバウンディングボックスを表示する
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-    plt.imshow(image)
-    
-    # 各人に対してアノテーションを描画
-    for i, ann in enumerate(anns):        
-        # キーポイントを取得
-        keypoints = ann['keypoints'].reshape(-1, 3)  # (17, 3)の形にリシェイプ
-        
-        # 可視性が0より大きいキーポイントのみ抽出
-        visible_keypoints = keypoints[keypoints[:, 2] > 0]
-        
-        # キーポイントが存在する場合のみ元のバウンディングボックスを描画
-        if len(visible_keypoints) > 0:
-            # 元のバウンディングボックスを描画
-            bbox = ann['bbox']
-            rect = patches.Rectangle(
-                (bbox[0], bbox[1]), bbox[2], bbox[3],
-                linewidth=2, edgecolor=f'C{i}', facecolor='none'
-            )
-            plt.gca().add_patch(rect)
-        
-            # キーポイントを描画
-            keypoints = ann['keypoints'].reshape(-1, 3)  # (17, 3)の形にリシェイプ
-            # キーポイントを点で描画
-            plt.scatter(
-                visible_keypoints[:, 0], visible_keypoints[:, 1],
-                c=f'C{i}', s=30, alpha=0.8
-            )
-
-    if title:
-        plt.title('preprocess')
-    else:
-        plt.title('original')
-    plt.show()
-
 # jpeg圧縮によるデータ拡張
 def jpeg_compression_augmentation(im):
     f = io.BytesIO()
@@ -416,9 +375,6 @@ class HFlip(Preprocess):
     def __call__(self, image, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
-
-        if meta['hflip']:
-            return image, anns, meta
 
         w, _ = image.size
         image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)

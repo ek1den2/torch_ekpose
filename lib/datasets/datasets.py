@@ -60,34 +60,6 @@ def get_keypoints():
     ]
 
     return keypoints
-    
-def collate_images_anns_meta(batch):
-    images = torch.utils.data.dataloader.default_collate([b[0] for b in batch])
-    anns = [b[1] for b in batch]
-    metas = [b[2] for b in batch]
-    return images, anns, metas
-
-
-def collate_multiscale_images_anns_meta(batch):
-    """マルチスケールのために照合"""
-    
-    n_scales = len(batch[0][0])
-    images = [torch.utils.data.dataloader.default_collate([b[0][i] for b in batch])
-              for i in range(n_scales)]
-    anns = [[b[1][i] for b in batch] for i in range(n_scales)]
-    metas = [b[2] for b in batch]
-    return images, anns, metas
-
-
-def collate_images_targets_meta(batch):
-
-    images = torch.utils.data.dataloader.default_collate([b[0] for b in batch])
-    targets1 = torch.utils.data.dataloader.default_collate([b[1] for b in batch])   # heatmap
-    targets2 = torch.utils.data.dataloader.default_collate([b[2] for b in batch])   # pafs
-    masks = torch.utils.data.dataloader.default_collate([b[3] for b in batch])      # mask
-
-    return images, targets1, targets2, masks
-
 
 class CocoKeypoints(torch.utils.data.Dataset):
     """独自データクラス"""
@@ -309,43 +281,3 @@ class CocoKeypoints(torch.utils.data.Dataset):
         
     def __len__(self):
         return len(self.ids)
-
-
-class ImageList(torch.utils.data.Dataset):
-    def __init__(self, image_paths, preprocess=None, image_transform=None):
-        self.image_paths = image_paths
-        self.image_transform = image_transform or transforms.image_transform
-        self.preprocess = preprocess
-
-    def __getitem__(self, index):
-        image_path = self.image_paths[index]
-        with open(image_path, 'rb') as f:
-            image = Image.open(f).convert('RGB')
-
-        if self.preprocess is not None:
-            image = self.preprocess(image, [], None)[0]
-
-        original_image = torchvision.transforms.functional.to_tensor(image)
-        image = self.image_transform(image)
-
-        return image_path, original_image, image
-
-    def __len__(self):
-        return len(self.image_paths)
-
-
-class PilImageList(torch.utils.data.Dataset):
-    def __init__(self, images, image_transform=None):
-        self.images = images
-        self.image_transform = image_transform or transforms.image_transform
-
-    def __getitem__(self, index):
-        pil_image = self.images[index].copy().convert('RGB')
-        original_image = torchvision.transforms.functional.to_tensor(pil_image)
-        image = self.image_transform(pil_image)
-
-        return index, original_image, image
-
-    def __len__(self):
-        return len(self.images)
-
