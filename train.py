@@ -253,54 +253,54 @@ def main():
 
 
 def data_loader(args, preprocess, target_transforms):
-        """データローダーを作成"""
-        # 訓練データ
-        print("Loading train dataset...")
-        train_datas = [datasets.CocoKeypoints(
-            root=args.train_image_dir,
-            mask_dir=args.train_mask_dir,
-            annFile=item,
-            preprocess=preprocess,
-            image_transform=transforms.image_transform_train,
-            target_transforms=target_transforms,
-            n_images= None,
-            input_x=args.square_size,
-            input_y=args.square_size,
-        ) for item in args.train_annotation_files]
+    """データローダーを作成"""
+    # 訓練データ
+    print("Loading train dataset...")
+    train_datas = [datasets.CocoKeypoints(
+        root=args.train_image_dir,
+        mask_dir=args.train_mask_dir,
+        annFile=item,
+        preprocess=preprocess,
+        image_transform=transforms.image_transform_train,
+        target_transforms=target_transforms,
+        n_images= None,
+        input_x=args.square_size,
+        input_y=args.square_size,
+    ) for item in args.train_annotation_files]
 
-        train_data = ConcatDataset(train_datas)
-        train_loader = DataLoader(
-            train_data,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=args.loader_workers,
-            pin_memory=args.pin_memory,
-            drop_last=False
-        )
+    train_data = ConcatDataset(train_datas)
+    train_loader = DataLoader(
+        train_data,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.loader_workers,
+        pin_memory=args.pin_memory,
+        drop_last=False
+    )
 
-        # 検証データ
-        print("Loading val dataset...")
-        val_data = datasets.CocoKeypoints(
-            root=args.val_image_dir,
-            mask_dir=args.val_mask_dir,
-            annFile=args.val_annotation_file,
-            preprocess=preprocess,
-            image_transform=transforms.image_transform_train,
-            target_transforms=target_transforms,
-            n_images=None,
-            input_x=args.square_size,
-            input_y=args.square_size,
-        )
-        val_loader = DataLoader(
-            val_data,
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=args.loader_workers,
-            pin_memory=args.pin_memory,
-            drop_last=False
-        )
+    # 検証データ
+    print("Loading val dataset...")
+    val_data = datasets.CocoKeypoints(
+        root=args.val_image_dir,
+        mask_dir=args.val_mask_dir,
+        annFile=args.val_annotation_file,
+        preprocess=preprocess,
+        image_transform=transforms.image_transform_train,
+        target_transforms=target_transforms,
+        n_images=None,
+        input_x=args.square_size,
+        input_y=args.square_size,
+    )
+    val_loader = DataLoader(
+        val_data,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.loader_workers,
+        pin_memory=args.pin_memory,
+        drop_last=False
+    )
 
-        return train_loader, val_loader, train_data, val_data
+    return train_loader, val_loader, train_data, val_data
 
 def build_names():
     """損失関数の名前を作成"""
