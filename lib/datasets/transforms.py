@@ -68,7 +68,7 @@ image_transform_train = torchvision.transforms.Compose([  # pylint: disable=inva
 
 class Preprocess(metaclass=ABCMeta):
     @abstractmethod
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         """前処理操作の実装"""
 
     @staticmethod
@@ -107,7 +107,7 @@ class Normalize(Preprocess):
 
         return anns
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         anns = self.normalize_annotations(anns)
 
         if meta is None:
@@ -120,7 +120,7 @@ class Normalize(Preprocess):
                 'width_height': np.array((w, h)),
             }
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
 
 # 複数の処理を１連の処理としてまとめ、再利用するクラス
@@ -128,15 +128,15 @@ class Compose(Preprocess):
     def __init__(self, preprocess_list):
         self.preprocess_list = preprocess_list
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
     
         augmentations = [partial(aug_meth) for aug_meth in self.preprocess_list]
-        image, anns, meta = reduce(
+        image, mask, anns, meta = reduce(
             lambda md_i_mm, f: f(*md_i_mm),
             augmentations,
-            (image, anns, meta)
+            (image, mask, anns, meta)
         )
-        return image, anns, meta
+        return image, mask, anns, meta
 
 
 class MultiScale(Preprocess):
@@ -148,15 +148,16 @@ class MultiScale(Preprocess):
         """
         self.preprocess_list = preprocess_list
 
-    def __call__(self, image, anns, meta):
-        image_list, anns_list, meta_list = [], [], []
+    def __call__(self, image, mask, anns, meta):
+        image_list, mask_list, anns_list, meta_list = [], [], [], []
         for p in self.preprocess_list:
-            this_image, this_anns, this_meta = p(image, anns, meta)
+            this_image, this_mask, this_anns, this_meta = p(image, mask, anns, meta)
             image_list.append(this_image)
+            mask_list.append(this_mask)
             anns_list.append(this_anns)
             meta_list.append(this_meta)
 
-        return image_list, anns_list, meta_list
+        return image_list, mask_list, anns_list, meta_list
 
 
 # リスケール
@@ -166,7 +167,7 @@ class RescaleRelative(Preprocess):
         self.scale_range = scale_range
         self.resample = resample
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
 
@@ -178,7 +179,7 @@ class RescaleRelative(Preprocess):
         else:
             scale_factor = self.scale_range
 
-        image, anns, scale_factors = self.scale(image, anns, scale_factor)
+        image, mask, anns, scale_factors = self.scale(image, mask, anns, scale_factor)
         self.log.debug('meta before: %s', meta)
         meta['offset'] *= scale_factors
         meta['scale'] *= scale_factors
@@ -189,12 +190,16 @@ class RescaleRelative(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
-    def scale(self, image, anns, factor):
+    def scale(self, image, mask, anns, factor):
         # scale image
         w, h = image.size
-        image = image.resize((int(w * factor), int(h * factor)), self.resample)
+        new_size = (int(w * factor), int(h * factor))
+        image = image.resize(new_size, self.resample)
+        if mask:
+            mask = mask.resize(new_size, PIL.Image.NEAREST)
+
         self.log.debug('before resize = (%f, %f), after = %s', w, h, image.size)
 
         # rescale keypoints
@@ -208,7 +213,7 @@ class RescaleRelative(Preprocess):
             ann['bbox'][2] *= x_scale
             ann['bbox'][3] *= y_scale
 
-        return image, anns, np.array((x_scale, y_scale))
+        return image, mask, anns, np.array((x_scale, y_scale))
 
 # 長辺に合わせてリスケール
 class RescaleAbsolute(Preprocess):
@@ -217,11 +222,11 @@ class RescaleAbsolute(Preprocess):
         self.long_edge = long_edge
         self.resample = resample
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
 
-        image, anns, scale_factors = self.scale(image, anns)
+        image, mask, anns, scale_factors = self.scale(image, mask, anns)
         self.log.debug('meta before: %s', meta)
         meta['offset'] *= scale_factors
         meta['scale'] *= scale_factors
@@ -232,9 +237,9 @@ class RescaleAbsolute(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
-    def scale(self, image, anns):
+    def scale(self, image, mask, anns):
         # scale image
         w, h = image.size
 
@@ -244,9 +249,15 @@ class RescaleAbsolute(Preprocess):
 
         s = this_long_edge / max(h, w)
         if h > w:
-            image = image.resize((int(w * s), this_long_edge), self.resample)
+            new_size = (int(w * s), this_long_edge)
         else:
-            image = image.resize((this_long_edge, int(h * s)), self.resample)
+            new_size = (this_long_edge, int(h * s))
+
+        image = image.resize(new_size, self.resample)
+        if mask:
+            mask = mask.resize(new_size, PIL.Image.NEAREST)
+
+
         self.log.debug('before resize = (%f, %f), scale factor = %f, after = %s',
                        w, h, s, image.size)
 
@@ -261,7 +272,7 @@ class RescaleAbsolute(Preprocess):
             ann['bbox'][2] *= x_scale
             ann['bbox'][3] *= y_scale
 
-        return image, anns, np.array((x_scale, y_scale))
+        return image, mask, anns, np.array((x_scale, y_scale))
 
 
 # 画像のクロップ
@@ -270,11 +281,11 @@ class Crop(Preprocess):
         self.log = logging.getLogger(self.__class__.__name__)
         self.long_edge = long_edge
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
 
-        image, anns, ltrb = self.crop(image, anns)
+        image, mask, anns, ltrb = self.crop(image, mask, anns)
         meta['offset'] += ltrb[:2]
 
         self.log.debug('valid area before crop of %s: %s', ltrb, meta['valid_area'])
@@ -288,9 +299,9 @@ class Crop(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
-    def crop(self, image, anns):
+    def crop(self, image, mask, anns):
         w, h = image.size
         padding = int(self.long_edge / 2.0)
         x_offset, y_offset = 0, 0
@@ -307,6 +318,8 @@ class Crop(Preprocess):
         new_h = min(self.long_edge, h - y_offset)
         ltrb = (x_offset, y_offset, x_offset + new_w, y_offset + new_h)
         image = image.crop(ltrb)
+        if mask:
+            mask = mask.crop(ltrb)
 
         # crop keypoints
         for ann in anns:
@@ -315,7 +328,7 @@ class Crop(Preprocess):
             ann['bbox'][0] -= x_offset
             ann['bbox'][1] -= y_offset
 
-        return image, anns, np.array(ltrb)
+        return image, mask, anns, np.array(ltrb)
 
 # ターゲットサイズで中央配置のパディング
 class CenterPad(Preprocess):
@@ -326,11 +339,11 @@ class CenterPad(Preprocess):
             target_size = (target_size, target_size)
         self.target_size = target_size
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
 
-        image, anns, ltrb = self.center_pad(image, anns)
+        image, mask, anns, ltrb = self.center_pad(image, mask, anns)
         meta['offset'] -= ltrb[:2]
 
         self.log.debug('valid area before pad with %s: %s', ltrb, meta['valid_area'])
@@ -340,9 +353,9 @@ class CenterPad(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
-    def center_pad(self, image, anns):
+    def center_pad(self, image, mask, anns):
         w, h = image.size
         left = int((self.target_size[0] - w) / 2.0)
         top = int((self.target_size[1] - h) / 2.0)
@@ -356,6 +369,8 @@ class CenterPad(Preprocess):
         # pad image
         image = torchvision.transforms.functional.pad(
             image, ltrb, fill=(124, 116, 104))
+        if mask:
+            mask = torchvision.transforms.functional.pad(mask, ltrb, fill=0)
 
         # pad annotations
         for ann in anns:
@@ -364,7 +379,7 @@ class CenterPad(Preprocess):
             ann['bbox'][0] += ltrb[0]
             ann['bbox'][1] += ltrb[1]
 
-        return image, anns, ltrb
+        return image, mask, anns, ltrb
 
 
 # 水平方向の反転
@@ -372,12 +387,15 @@ class HFlip(Preprocess):
     def __init__(self, *, swap=horizontal_swap_coco):
         self.swap = swap
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
 
         w, _ = image.size
         image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+        if mask:
+            mask = mask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+
         for ann in anns:
             ann['keypoints'][:, 0] = -ann['keypoints'][:, 0] - 1.0 + w
             if self.swap is not None:
@@ -392,7 +410,7 @@ class HFlip(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
 # ランダム適用の際に利用
 class RandomApply(Preprocess):
@@ -400,35 +418,38 @@ class RandomApply(Preprocess):
         self.transform = transform
         self.probability = probability
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
         if float(torch.rand(1).item()) > self.probability:
-            return image, anns, meta
-        return self.transform(image, anns, meta)
-      
+            return image, mask, anns, meta
+        return self.transform(image, mask, anns, meta)
+
 
 # ランダム回転
 class RandomRotate(Preprocess):
-    def __init__(self, max_rotate_degree=40):   # 最大回転角度
+    def __init__(self, max_rotate_degree=25):   # 最大回転角度
         super().__init__()
         self.log = logging.getLogger(self.__class__.__name__)
 
         self.max_rotate_degree =  max_rotate_degree
 
-    def __call__(self, image, anns, meta):
+    def __call__(self, image, mask, anns, meta):
 
         meta = copy.deepcopy(meta)
         anns = copy.deepcopy(anns)
         w, h = image.size
         
         dice = random.random()
-        degree = (dice - 0.5) * 2 * \
-            self.max_rotate_degree  # 角度 -40,40 の範囲で
+        degree = (dice - 0.5) * 2 * self.max_rotate_degree  # 角度 -40,40 の範囲で
 
         img_rot, R = self.rotate_bound(np.asarray(image), np.copy(degree), (128, 128, 128))
         image = PIL.Image.fromarray(img_rot)
 
+        if mask:
+            mask_rot, _ = self.rotate_bound(np.asarray(mask), np.copy(degree), 0)
+            mask = PIL.Image.fromarray(mask_rot)
+
         for j,ann in enumerate(anns):
-            for k in range(13):
+            for k in range(17):
                 xy = ann['keypoints'][k, :2]     
                 new_xy = self.rotatepoint(xy, R)
                 anns[j]['keypoints'][k, :2] = new_xy
@@ -442,7 +463,7 @@ class RandomRotate(Preprocess):
         for ann in anns:
             ann['valid_area'] = meta['valid_area']
 
-        return image, anns, meta
+        return image, mask, anns, meta
 
     @staticmethod
     def rotatepoint(p, R):

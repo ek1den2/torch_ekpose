@@ -90,6 +90,8 @@ class CocoKeypoints(torch.utils.data.Dataset):
         self.preprocess = preprocess or transforms.Normalize()
         self.image_transform = image_transform or transforms.image_transform
         self.target_transforms = target_transforms
+
+        self.mask_transform = torchvision.transforms.ToTensor()
         
         self.HEATMAP_COUNT = len(get_keypoints())
         self.LIMB_IDS = kp_connections(get_keypoints())
@@ -127,13 +129,17 @@ class CocoKeypoints(torch.utils.data.Dataset):
             image = Image.open(f).convert('RGB')
 
         # maskの読み込み
-        mask_path = os.path.join(self.mask_dir, 'mask_' + image_info['file_name'])
+        base_filename, _ = os.path.splitext(image_info['file_name'])
+        mask_filename = f"mask_{base_filename}.png"
+        print(f"mask_filename: {mask_filename}")
+        mask_path = os.path.join(self.mask_dir, mask_filename)
         if os.path.exists(mask_path):
             with open(mask_path, 'rb') as f:
-                mask_img = Image.open(f).convert('RGB')
+                mask = Image.open(f).convert('L')
         else:
             # マスクが存在しない場合はオール白のマスクを使用
-            mask_img = Image.new('RGB', image.size, (255, 255, 255))
+            print(f"マスクを全部白で代用")
+            mask = Image.new('L', image.size, 255)
 
         meta_init = {
             'dataset_index': index,
@@ -141,8 +147,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
             'file_name': image_info['file_name'],
         }
 
-        image, anns, meta = self.preprocess(image, anns, None)
-        mask = self.preprocess(mask_img, [], meta)[0]
+        image, mask, anns, meta = self.preprocess(image, mask, anns, None)
 
         if isinstance(image, list):
             return self.multi_image_processing(image, mask, anns, meta, meta_init)
@@ -166,7 +171,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
         assert image.size(2) == original_size[0]
         assert image.size(1) == original_size[1]
 
-        mask = self.image_transform(mask)
+        mask = self.mask_transform(mask)
 
         # 有効領域のマスク
         valid_area = meta['valid_area']
@@ -183,7 +188,6 @@ class CocoKeypoints(torch.utils.data.Dataset):
             
         pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))
 
-        mask = mask[0, :, :].unsqueeze(0)
         target_size = pafs.shape[1:]
         resized_mask = torch.nn.functional.interpolate(
             mask.unsqueeze(0),

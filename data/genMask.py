@@ -6,20 +6,20 @@ from pycocotools import mask as maskUtils
 
 def main():    
     # データセットのパス設定
-    # train_json = 'coco2017/annotations_train.json'
+    train_json = 'coco2017/annotations_train.json'
     val_json = 'coco2017/annotations_val.json'
 
-    # train_output_dir = 'coco2017/masks/train/'
+    train_output_dir = 'coco2017/masks/train/'
     val_output_dir = 'coco2017/masks/val/'
-    # if not os.path.exists(train_output_dir):
-    #     os.makedirs(train_output_dir)
+    if not os.path.exists(train_output_dir):
+        os.makedirs(train_output_dir)
     if not os.path.exists(val_output_dir):
         os.makedirs(val_output_dir)
 
     # 訓練データの処理
-    # if os.path.exists(train_json):
-    #     print("Processing training data...")
-    #     process_coco_masks(train_json, train_output_dir)
+    if os.path.exists(train_json):
+        print("Processing training data...")
+        process_coco_masks(train_json, train_output_dir)
 
     # 検証データの処理
     if os.path.exists(val_json):
