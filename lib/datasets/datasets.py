@@ -131,7 +131,6 @@ class CocoKeypoints(torch.utils.data.Dataset):
         # maskの読み込み
         base_filename, _ = os.path.splitext(image_info['file_name'])
         mask_filename = f"mask_{base_filename}.png"
-        print(f"mask_filename: {mask_filename}")
         mask_path = os.path.join(self.mask_dir, mask_filename)
         if os.path.exists(mask_path):
             with open(mask_path, 'rb') as f:
