@@ -190,8 +190,8 @@ def main():
     print("\nvvvvvvvvvvv Start Training vvvvvvvvvvv\n")
     for epoch in range(5 if args.pretrained_path or args.imagenet_pretrained else 0, args.epochs):
         start_time = time()
-        train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
-        val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
+        train_loss, train_stage_losses = train(train_loader, model, optimizer, args)
+        val_loss, val_stage_losses = validate(val_loader, model, args)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
