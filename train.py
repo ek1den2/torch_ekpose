@@ -77,6 +77,8 @@ def main():
     args.val_image_dir = os.path.join(DATA_DIR, args.datasets, 'images/val')
     args.train_annotation_files = [os.path.join(DATA_DIR, args.datasets, item) for item in ['annotations_train.json']]
     args.val_annotation_file = os.path.join(DATA_DIR, args.datasets, 'annotations_val.json')
+    args.train_mask_dir = os.path.join(DATA_DIR, args.datasets, 'masks/train')
+    args.val_mask_dir = os.path.join(DATA_DIR, args.datasets, 'masks/val')
 
     print("settings:")
     print(vars(args))
@@ -151,8 +153,8 @@ def main():
         print("\nvvvvvvvvvvv Start WarmUp vvvvvvvvvvv\n")
         for epoch in range(5):
             start_time = time()
-            train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
-            val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
+            train_loss, train_stage_losses = train(train_loader, model, optimizer, args)
+            val_loss, val_stage_losses = validate(val_loader, model, args)
             train_loss_history.append(train_loss)
             val_loss_history.append(val_loss)
 
@@ -188,8 +190,8 @@ def main():
     print("\nvvvvvvvvvvv Start Training vvvvvvvvvvv\n")
     for epoch in range(5 if args.pretrained_path or args.imagenet_pretrained else 0, args.epochs):
         start_time = time()
-        train_loss, train_stage_losses = train(train_loader, model, optimizer, args, epoch)
-        val_loss, val_stage_losses = validate(val_loader, model, args, epoch)
+        train_loss, train_stage_losses = train(train_loader, model, optimizer, args)
+        val_loss, val_stage_losses = validate(val_loader, model, args)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
 
@@ -251,52 +253,54 @@ def main():
 
 
 def data_loader(args, preprocess, target_transforms):
-        """データローダーを作成"""
-        # 訓練データ
-        print("Loading train dataset...")
-        train_datas = [datasets.CocoKeypoints(
-            root=args.train_image_dir,
-            annFile=item,
-            preprocess=preprocess,
-            image_transform=transforms.image_transform_train,
-            target_transforms=target_transforms,
-            n_images= None,
-            input_x=args.square_size,
-            input_y=args.square_size,
-        ) for item in args.train_annotation_files]
+    """データローダーを作成"""
+    # 訓練データ
+    print("Loading train dataset...")
+    train_datas = [datasets.CocoKeypoints(
+        root=args.train_image_dir,
+        mask_dir=args.train_mask_dir,
+        annFile=item,
+        preprocess=preprocess,
+        image_transform=transforms.image_transform_train,
+        target_transforms=target_transforms,
+        n_images= None,
+        input_x=args.square_size,
+        input_y=args.square_size,
+    ) for item in args.train_annotation_files]
 
-        train_data = ConcatDataset(train_datas)
-        train_loader = DataLoader(
-            train_data,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=args.loader_workers,
-            pin_memory=args.pin_memory,
-            drop_last=False
-        )
+    train_data = ConcatDataset(train_datas)
+    train_loader = DataLoader(
+        train_data,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.loader_workers,
+        pin_memory=args.pin_memory,
+        drop_last=False
+    )
 
-        # 検証データ
-        print("Loading val dataset...")
-        val_data = datasets.CocoKeypoints(
-            root=args.val_image_dir,
-            annFile=args.val_annotation_file,
-            preprocess=preprocess,
-            image_transform=transforms.image_transform_train,
-            target_transforms=target_transforms,
-            n_images=None,
-            input_x=args.square_size,
-            input_y=args.square_size,
-        )
-        val_loader = DataLoader(
-            val_data,
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=args.loader_workers,
-            pin_memory=args.pin_memory,
-            drop_last=False
-        )
+    # 検証データ
+    print("Loading val dataset...")
+    val_data = datasets.CocoKeypoints(
+        root=args.val_image_dir,
+        mask_dir=args.val_mask_dir,
+        annFile=args.val_annotation_file,
+        preprocess=preprocess,
+        image_transform=transforms.image_transform_train,
+        target_transforms=target_transforms,
+        n_images=None,
+        input_x=args.square_size,
+        input_y=args.square_size,
+    )
+    val_loader = DataLoader(
+        val_data,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.loader_workers,
+        pin_memory=args.pin_memory,
+        drop_last=False
+    )
 
-        return train_loader, val_loader, train_data, val_data
+    return train_loader, val_loader, train_data, val_data
 
 def build_names():
     """損失関数の名前を作成"""
@@ -308,7 +312,7 @@ def build_names():
     
     return names
 
-def get_loss(saved_for_loss, heat_temp, vec_temp, args):
+def get_loss(saved_for_loss, heat_temp, vec_temp, mask, args):
     """損失の計算"""
     names = build_names()
     saved_for_log = OrderedDict()
@@ -319,17 +323,15 @@ def get_loss(saved_for_loss, heat_temp, vec_temp, args):
         pred1 = saved_for_loss[2 * j]
         pred2 = saved_for_loss[2 * j + 1] 
 
-        loss1 = criterion(pred1, vec_temp)
-        loss2 = criterion(pred2, heat_temp)
+        loss1 = criterion(pred1 * mask, vec_temp * mask) / args.batch_size
+        loss2 = criterion(pred2 * mask, heat_temp * mask) / args.batch_size
 
         total_loss += loss1 + loss2
 
         # ログの保存
         saved_for_log[names[2 * j]] = loss1.item()
         saved_for_log[names[2 * j + 1]] = loss2.item()
-    
-    # lossをバッチサイズで割る
-    total_loss = total_loss / args.batch_size
+
 
     saved_for_log['max_ht'] = torch.max(saved_for_loss[-1].data[:, 0:-1, :, :]).item()
     saved_for_log['min_ht'] = torch.min(saved_for_loss[-1].data[:, 0:-1, :, :]).item()
@@ -338,7 +340,7 @@ def get_loss(saved_for_loss, heat_temp, vec_temp, args):
 
     return total_loss, saved_for_log
 
-def train(train_loader, model, optimizer, args, epoch):
+def train(train_loader, model, optimizer, args):
     """訓練"""
 
     batch_time = AverageMeter()
@@ -357,18 +359,19 @@ def train(train_loader, model, optimizer, args, epoch):
     model.train()
 
     end = time()
-    for i, (img, heatmap_target, paf_target) in enumerate(tqdm(train_loader, desc="train", leave=False)):
+    for i, (img, heatmap_target, paf_target, mask) in enumerate(tqdm(train_loader, desc="train", leave=False)):
         # データの読み込み時間を計測
         data_time.update(time() - end)
 
         img = img.cuda()
         heatmap_target = heatmap_target.cuda()
         paf_target = paf_target.cuda()
+        mask = mask.cuda()
 
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
 
-        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, args)
+        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, mask, args)
 
         for name, _ in meter_dict.items():
             meter_dict[name].update(saved_for_log[name], img.size(0))
@@ -392,7 +395,7 @@ def train(train_loader, model, optimizer, args, epoch):
 
     return losses.avg, stage_losses
 
-def validate(val_loader, model, args, epoch):
+def validate(val_loader, model, args):
     """検証"""
     losses = AverageMeter()
 
@@ -407,16 +410,17 @@ def validate(val_loader, model, args, epoch):
     # モデルを評価モードに設定
     model.eval()
 
-    for i, (img, heatmap_target, paf_target) in enumerate(tqdm(val_loader, desc="val", leave=False)):
+    for i, (img, heatmap_target, paf_target, mask) in enumerate(tqdm(val_loader, desc="val", leave=False)):
 
         img = img.cuda()
         heatmap_target = heatmap_target.cuda()
         paf_target = paf_target.cuda()
+        mask = mask.cuda()
 
         # モデルの出力（ロスだけ格納）
         _, saved_for_loss = model(img)
 
-        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, args)
+        total_loss, saved_for_log = get_loss(saved_for_loss, heatmap_target, paf_target, mask, args)
 
         for name, _ in meter_dict.items():
             meter_dict[name].update(saved_for_log[name], img.size(0))

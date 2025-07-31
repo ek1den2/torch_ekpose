@@ -60,44 +60,19 @@ def get_keypoints():
     ]
 
     return keypoints
-    
-def collate_images_anns_meta(batch):
-    images = torch.utils.data.dataloader.default_collate([b[0] for b in batch])
-    anns = [b[1] for b in batch]
-    metas = [b[2] for b in batch]
-    return images, anns, metas
-
-
-def collate_multiscale_images_anns_meta(batch):
-    """マルチスケールのために照合"""
-    
-    n_scales = len(batch[0][0])
-    images = [torch.utils.data.dataloader.default_collate([b[0][i] for b in batch])
-              for i in range(n_scales)]
-    anns = [[b[1][i] for b in batch] for i in range(n_scales)]
-    metas = [b[2] for b in batch]
-    return images, anns, metas
-
-
-def collate_images_targets_meta(batch):
-
-    images = torch.utils.data.dataloader.default_collate([b[0] for b in batch])
-    targets1 = torch.utils.data.dataloader.default_collate([b[1] for b in batch])
-    targets2 = torch.utils.data.dataloader.default_collate([b[2] for b in batch])    
-
-    return images, targets1, targets2
-
 
 class CocoKeypoints(torch.utils.data.Dataset):
     """独自データクラス"""
 
-    def __init__(self, root, annFile, image_transform=None, target_transforms=None,
+    def __init__(self, root, mask_dir, annFile, image_transform=None, target_transforms=None,
                  n_images=None, preprocess=None, all_images=False, all_persons=False,
                  input_y=368, input_x=368, stride=8):
         from pycocotools.coco import COCO
         from contextlib import redirect_stdout
 
         self.root = root
+        self.mask_dir = mask_dir
+
         with redirect_stdout(io.StringIO()):
             self.coco = COCO(annFile)
 
@@ -115,6 +90,8 @@ class CocoKeypoints(torch.utils.data.Dataset):
         self.preprocess = preprocess or transforms.Normalize()
         self.image_transform = image_transform or transforms.image_transform
         self.target_transforms = target_transforms
+
+        self.mask_transform = torchvision.transforms.ToTensor()
         
         self.HEATMAP_COUNT = len(get_keypoints())
         self.LIMB_IDS = kp_connections(get_keypoints())
@@ -151,26 +128,38 @@ class CocoKeypoints(torch.utils.data.Dataset):
         with open(os.path.join(self.root, image_info['file_name']), 'rb') as f:
             image = Image.open(f).convert('RGB')
 
+        # maskの読み込み
+        base_filename, _ = os.path.splitext(image_info['file_name'])
+        mask_filename = f"mask_{base_filename}.png"
+        mask_path = os.path.join(self.mask_dir, mask_filename)
+        if os.path.exists(mask_path):
+            with open(mask_path, 'rb') as f:
+                mask = Image.open(f).convert('L')
+        else:
+            # マスクが存在しない場合はオール白のマスクを使用
+            print(f"マスクを全部白で代用")
+            mask = Image.new('L', image.size, 255)
+
         meta_init = {
             'dataset_index': index,
             'image_id': image_id,
             'file_name': image_info['file_name'],
         }
 
-        image, anns, meta = self.preprocess(image, anns, None)
-             
+        image, mask, anns, meta = self.preprocess(image, mask, anns, None)
+
         if isinstance(image, list):
-            return self.multi_image_processing(image, anns, meta, meta_init)
+            return self.multi_image_processing(image, mask, anns, meta, meta_init)
 
-        return self.single_image_processing(image, anns, meta, meta_init)
+        return self.single_image_processing(image, mask, anns, meta, meta_init)
 
-    def multi_image_processing(self, image_list, anns_list, meta_list, meta_init):
+    def multi_image_processing(self, image_list, mask_list, anns_list, meta_list, meta_init):
         return list(zip(*[
-            self.single_image_processing(image, anns, meta, meta_init)
-            for image, anns, meta in zip(image_list, anns_list, meta_list)
+            self.single_image_processing(image, mask, anns, meta, meta_init)
+            for image, mask, anns, meta in zip(image_list, mask_list, anns_list, meta_list)
         ]))
 
-    def single_image_processing(self, image, anns, meta, meta_init):
+    def single_image_processing(self, image, mask, anns, meta, meta_init):
         """単一の画像を処理"""
 
         meta.update(meta_init)
@@ -181,9 +170,12 @@ class CocoKeypoints(torch.utils.data.Dataset):
         assert image.size(2) == original_size[0]
         assert image.size(1) == original_size[1]
 
+        mask = self.mask_transform(mask)
+
         # 有効領域のマスク
         valid_area = meta['valid_area']
         utils.mask_valid_area(image, valid_area)
+        utils.mask_valid_area(mask, valid_area)
 
         self.log.debug(meta)
 
@@ -193,8 +185,16 @@ class CocoKeypoints(torch.utils.data.Dataset):
         heatmaps = torch.from_numpy(
             heatmaps.transpose((2, 0, 1)).astype(np.float32))
             
-        pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))       
-        return image, heatmaps, pafs
+        pafs = torch.from_numpy(pafs.transpose((2, 0, 1)).astype(np.float32))
+
+        target_size = pafs.shape[1:]
+        resized_mask = torch.nn.functional.interpolate(
+            mask.unsqueeze(0),
+            size=target_size,
+            mode='nearest')
+        mask = resized_mask.squeeze(0)
+
+        return image, heatmaps, pafs, mask
 
     def remove_illegal_joint(self, keypoints):
         """画面外のキーポイントを除去"""
@@ -275,7 +275,7 @@ class CocoKeypoints(torch.utils.data.Dataset):
                         count=count, grid_y=grid_y, grid_x=grid_x, stride=self.stride
                     )
 
-        # 背景チャネル（14 "+1"の部分）。どのキーポイントでもない領域
+        # 背景チャネル（17 "+1"の部分）。どのキーポイントでもない領域
         heatmaps[:, :, -1] = np.maximum(
             1 - np.max(heatmaps[:, :, :self.HEATMAP_COUNT], axis=2),
             0.
@@ -284,43 +284,3 @@ class CocoKeypoints(torch.utils.data.Dataset):
         
     def __len__(self):
         return len(self.ids)
-
-
-class ImageList(torch.utils.data.Dataset):
-    def __init__(self, image_paths, preprocess=None, image_transform=None):
-        self.image_paths = image_paths
-        self.image_transform = image_transform or transforms.image_transform
-        self.preprocess = preprocess
-
-    def __getitem__(self, index):
-        image_path = self.image_paths[index]
-        with open(image_path, 'rb') as f:
-            image = Image.open(f).convert('RGB')
-
-        if self.preprocess is not None:
-            image = self.preprocess(image, [], None)[0]
-
-        original_image = torchvision.transforms.functional.to_tensor(image)
-        image = self.image_transform(image)
-
-        return image_path, original_image, image
-
-    def __len__(self):
-        return len(self.image_paths)
-
-
-class PilImageList(torch.utils.data.Dataset):
-    def __init__(self, images, image_transform=None):
-        self.images = images
-        self.image_transform = image_transform or transforms.image_transform
-
-    def __getitem__(self, index):
-        pil_image = self.images[index].copy().convert('RGB')
-        original_image = torchvision.transforms.functional.to_tensor(pil_image)
-        image = self.image_transform(pil_image)
-
-        return index, original_image, image
-
-    def __len__(self):
-        return len(self.images)
-
